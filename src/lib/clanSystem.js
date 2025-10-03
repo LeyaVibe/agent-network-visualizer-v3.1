@@ -381,6 +381,13 @@ export class ClanSystem {
     /**
      * Получение статистики по кланам
      */
+    getClanStats() {
+        return this.getClanStatistics();
+    }
+
+    /**
+     * Получение статистики по кланам
+     */
     getClanStatistics() {
         return {
             totalClans: this.clans.length,
