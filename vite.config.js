@@ -6,6 +6,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(),tailwindcss()],
+  base: '/agent-network-visualizer-v3.1/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
