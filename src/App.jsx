@@ -342,7 +342,7 @@ function App() {
           simulationResult.economicHistory
         );
         
-        setEconomicStats(enhancedStats.current);
+        setEconomicStats(enhancedStats.current.economic);
         
         // Получаем последнюю статистику кланов
         const lastClanStats = simulationResult.economicHistory.clans[
