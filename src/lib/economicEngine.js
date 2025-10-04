@@ -17,6 +17,11 @@ export class EconomicEngine {
         this.accumulationRate = params.accumulationRate !== undefined ? params.accumulationRate : 0.1;
         this.starvationThreshold = params.starvationThreshold !== undefined ? params.starvationThreshold : 3;
         this.interClanDistribution = params.interClanDistribution !== false;
+        
+        // Начальные ресурсы (зависят от сложности)
+        // Рассчитываем на основе минимальной эффективности
+        const survivalCycles = this.minEfficiency < 0.4 ? 1.5 : (this.minEfficiency < 0.6 ? 3 : 5);
+        this.initialResources = params.initialResources || Math.round(this.minSurvival * survivalCycles);
     }
 
     /**
@@ -26,11 +31,12 @@ export class EconomicEngine {
         agents.forEach(agent => {
             if (!agent.economics) {
                 agent.economics = {
-                    currentResources: 50,           // Стартовые ресурсы
-                    accumulatedResources: 0,        // Накопленные ресурсы
-                    productionHistory: [],          // История производства
-                    consumptionHistory: [],         // История потребления
-                    alive: true                     // Статус выживания
+                    currentResources: this.initialResources,  // Стартовые ресурсы (зависят от сложности)
+                    accumulatedResources: 0,                  // Накопленные ресурсы
+                    productionHistory: [],                    // История производства
+                    consumptionHistory: [],                   // История потребления
+                    alive: true,                              // Статус выживания
+                    starvationCounter: 0                      // Счетчик циклов голодания
                 };
             }
         });

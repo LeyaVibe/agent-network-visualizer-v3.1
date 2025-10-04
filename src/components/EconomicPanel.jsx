@@ -184,10 +184,13 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                         <div className="space-y-1">
                                             <button
                                                 onClick={() => applyPreset({
-                                                    minEfficiency: 0.3,
-                                                    accumulationRate: 0.03,
+                                                    minEfficiency: 0.2,
+                                                    accumulationRate: 0.01,
                                                     starvationThreshold: 1,
-                                                    interClanDistribution: false
+                                                    interClanDistribution: false,
+                                                    baseProductivity: 8,
+                                                    minSurvival: 12,
+                                                    maxMultiplier: 1.4
                                                 })}
                                                 className="w-full px-3 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 rounded border border-red-500/50 transition-colors font-medium"
                                             >
@@ -248,7 +251,7 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                 <Slider
                                     value={[params.maxMultiplier || 2.0]}
                                     onValueChange={([value]) => handleChange('maxMultiplier', value)}
-                                    min={1.5}
+                                    min={1.2}
                                     max={3.0}
                                     step={0.1}
                                 />
