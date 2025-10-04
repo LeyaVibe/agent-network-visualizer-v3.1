@@ -497,7 +497,13 @@ export class EventLogger {
      * Логирование экономической статистики цикла
      */
     logCycleEconomics(data) {
-        const { cycle, survived, died, averageResources, totalProduction } = data;
+        const { 
+            cycle = 0, 
+            survived = 0, 
+            died = 0, 
+            averageResources = 0, 
+            totalProduction = 0 
+        } = data || {};
         
         // Логируем общую экономическую статистику
         this.logEvent(
@@ -513,12 +519,13 @@ export class EventLogger {
         );
 
         // Проверяем критические ситуации
-        if (died > survived * 0.1) {
+        const totalAgents = survived + died;
+        if (totalAgents > 0 && died > survived * 0.1) {
             this.logEvent(
                 EVENT_TYPES.ECONOMIC_CRISIS,
                 {
                     cycle,
-                    deathRate: (died / (survived + died)) * 100,
+                    deathRate: (died / totalAgents) * 100,
                     died,
                     survived
                 },
