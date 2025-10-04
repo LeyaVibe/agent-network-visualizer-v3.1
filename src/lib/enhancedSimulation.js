@@ -38,14 +38,26 @@ export function runEnhancedSimulation(params) {
     // Инициализация системы логирования событий
     const eventLogger = new EventLogger();
     
-    // Инициализация расширенных экономических систем
-    const economicEngine = economicParams.useEnhanced !== false 
-        ? new EnhancedEconomicEngine(economicParams, eventLogger)
-        : new EconomicEngine(economicParams);
+    // Инициализация экономических систем с fallback
+    let economicEngine;
+    try {
+        economicEngine = economicParams.useEnhanced !== false 
+            ? new EnhancedEconomicEngine(economicParams, eventLogger)
+            : new EconomicEngine(economicParams);
+    } catch (error) {
+        console.warn('Failed to initialize enhanced economic engine, using basic:', error);
+        economicEngine = new EconomicEngine(economicParams);
+    }
     
-    const clanSystem = clanParams.useEnhanced !== false
-        ? new EnhancedClanSystem(clanParams, eventLogger)
-        : new ClanSystem(clanParams);
+    let clanSystem;
+    try {
+        clanSystem = clanParams.useEnhanced !== false
+            ? new EnhancedClanSystem(clanParams, eventLogger)
+            : new ClanSystem(clanParams);
+    } catch (error) {
+        console.warn('Failed to initialize enhanced clan system, using basic:', error);
+        clanSystem = new ClanSystem(clanParams);
+    }
     
     const conflictMechanics = new ConflictMechanics(conflictParams);
 
@@ -189,10 +201,22 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
     // Фаза 1: Производство и потребление с расширенной экономикой
     const economicResult = economicEngine.executeEconomicCycle(agents, connections, cycle);
 
-    // Фаза 2: Формирование и управление кланами с расширенной системой
-    const clans = clanSystem.formClans ? 
-        clanSystem.formClans(agents, connections, cycle) : 
-        clanSystem.identifyClans(agents, connections);
+    // Фаза 2: Формирование и управление кланами с безопасным вызовом
+    let clans;
+    try {
+        if (clanSystem.formClans && typeof clanSystem.formClans === 'function') {
+            clans = clanSystem.formClans(agents, connections, cycle);
+        } else if (clanSystem.identifyClans && typeof clanSystem.identifyClans === 'function') {
+            clans = clanSystem.identifyClans(agents, connections);
+        } else {
+            // Fallback: создаем простые кланы
+            clans = [];
+            console.warn('No clan formation method available, using empty clans');
+        }
+    } catch (error) {
+        console.error('Error in clan formation:', error);
+        clans = [];
+    }
 
     // Преобразование кланов в правильный формат для обработки
     let clansForProcessing = clans;
@@ -204,49 +228,87 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
         });
     }
 
-    // Фаза 3: Принятие решений кланами (расширенная логика)
-    if (clansForProcessing instanceof Map) {
-        clansForProcessing.forEach(clan => {
-            if (clanSystem.makeClanDecision) {
-                clanSystem.makeClanDecision(clan);
+    // Фаза 3: Принятие решений кланами с безопасными вызовами
+    if (clansForProcessing && clansForProcessing.length > 0) {
+        try {
+            if (clansForProcessing instanceof Map) {
+                clansForProcessing.forEach(clan => {
+                    if (clanSystem.makeClanDecision && typeof clanSystem.makeClanDecision === 'function') {
+                        clanSystem.makeClanDecision(clan);
+                    }
+                });
+            } else if (Array.isArray(clansForProcessing)) {
+                clansForProcessing.forEach(clan => {
+                    if (clanSystem.makeClanDecision && typeof clanSystem.makeClanDecision === 'function') {
+                        clanSystem.makeClanDecision(clan);
+                    }
+                });
             }
-        });
-    } else if (Array.isArray(clansForProcessing)) {
-        clansForProcessing.forEach(clan => {
-            if (clanSystem.makeClanDecision) {
-                clanSystem.makeClanDecision(clan);
-            }
-        });
+        } catch (error) {
+            console.error('Error in clan decision making:', error);
+        }
     }
 
-    // Фаза 4: Обработка конфликтов
-    const conflicts = conflictMechanics.processConflicts(clansForProcessing, connections, agents);
-
-    // Фаза 5: Распределение ресурсов внутри кланов
-    if (clansForProcessing instanceof Map) {
-        clansForProcessing.forEach(clan => {
-            // Пропускаем кланы с "беспределом" - они уже атаковали
-            if (clan.decision && clan.decision.rule !== 'lawlessness') {
-                clanSystem.distributeResources(clan, connections, agents);
-            }
-        });
-    } else if (Array.isArray(clansForProcessing)) {
-        clansForProcessing.forEach(clan => {
-            // Пропускаем кланы с "беспределом" - они уже атаковали
-            if (clan.decision && clan.decision.rule !== 'lawlessness') {
-                clanSystem.distributeResources(clan, connections, agents);
-            }
-        });
+    // Фаза 4: Обработка конфликтов с безопасными вызовами
+    let conflicts = [];
+    try {
+        if (conflictMechanics && conflictMechanics.processConflicts && typeof conflictMechanics.processConflicts === 'function') {
+            conflicts = conflictMechanics.processConflicts(clansForProcessing, connections, agents);
+        }
+    } catch (error) {
+        console.error('Error in conflict processing:', error);
+        conflicts = [];
     }
 
-    // Получение расширенной статистики
-    const clanStats = clanSystem.getEnhancedClanStats ? 
-        clanSystem.getEnhancedClanStats(clansForProcessing) : 
-        safeClanStats(clanSystem);
+    // Фаза 5: Распределение ресурсов внутри кланов с безопасными вызовами
+    if (clansForProcessing && clanSystem.distributeResources && typeof clanSystem.distributeResources === 'function') {
+        try {
+            if (clansForProcessing instanceof Map) {
+                clansForProcessing.forEach(clan => {
+                    // Пропускаем кланы с "беспределом" - они уже атаковали
+                    if (clan.decision && clan.decision.rule !== 'lawlessness') {
+                        clanSystem.distributeResources(clan, connections, agents);
+                    }
+                });
+            } else if (Array.isArray(clansForProcessing)) {
+                clansForProcessing.forEach(clan => {
+                    // Пропускаем кланы с "беспределом" - они уже атаковали
+                    if (clan.decision && clan.decision.rule !== 'lawlessness') {
+                        clanSystem.distributeResources(clan, connections, agents);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error in resource distribution:', error);
+        }
+    }
 
-    const economicStats = economicEngine.getEnhancedEconomicStats ? 
-        economicEngine.getEnhancedEconomicStats(agents) : 
-        economicEngine.getEconomicStats(agents);
+    // Получение расширенной статистики с безопасными вызовами
+    let clanStats = {};
+    try {
+        if (clanSystem.getEnhancedClanStats && typeof clanSystem.getEnhancedClanStats === 'function') {
+            clanStats = clanSystem.getEnhancedClanStats(clansForProcessing);
+        } else if (clanSystem.getClanStats && typeof clanSystem.getClanStats === 'function') {
+            clanStats = clanSystem.getClanStats();
+        } else {
+            clanStats = safeClanStats(clanSystem);
+        }
+    } catch (error) {
+        console.error('Error getting clan stats:', error);
+        clanStats = {};
+    }
+
+    let economicStats = {};
+    try {
+        if (economicEngine.getEnhancedEconomicStats && typeof economicEngine.getEnhancedEconomicStats === 'function') {
+            economicStats = economicEngine.getEnhancedEconomicStats(agents);
+        } else if (economicEngine.getEconomicStats && typeof economicEngine.getEconomicStats === 'function') {
+            economicStats = economicEngine.getEconomicStats(agents);
+        }
+    } catch (error) {
+        console.error('Error getting economic stats:', error);
+        economicStats = {};
+    }
 
     return {
         economic: economicResult,
