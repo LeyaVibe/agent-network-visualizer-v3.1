@@ -104,7 +104,8 @@ export function runEnhancedSimulation(params) {
 
             history.clans.push({
                 cycle: cycle,
-                ...economicResult.clans
+                ...economicResult.clans,
+                freeAgents: economicResult.freeAgents || {}
             });
 
             if (economicResult.conflicts.length > 0) {
@@ -276,6 +277,15 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
         }
     }
 
+    // Фаза 6: Межклановое распределение излишков (включая свободных агентов)
+    if (clanSystem.distributeInterClanSurplus && typeof clanSystem.distributeInterClanSurplus === 'function') {
+        try {
+            clanSystem.distributeInterClanSurplus(agents, connections);
+        } catch (error) {
+            console.error('Error in inter-clan distribution:', error);
+        }
+    }
+
     // Получение расширенной статистики с безопасными вызовами
     let clanStats = {};
     try {
@@ -303,10 +313,22 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
         economicStats = {};
     }
 
+    // Получение статистики свободных агентов
+    let freeAgentsStats = {};
+    try {
+        if (clanSystem.getFreeAgentsStats && typeof clanSystem.getFreeAgentsStats === 'function') {
+            freeAgentsStats = clanSystem.getFreeAgentsStats(agents);
+        }
+    } catch (error) {
+        console.error('Error getting free agents stats:', error);
+        freeAgentsStats = {};
+    }
+
     return {
         economic: economicResult,
         economicStats: economicStats,
         clans: clanStats,
+        freeAgents: freeAgentsStats,
         conflicts: conflicts,
         events: []
     };

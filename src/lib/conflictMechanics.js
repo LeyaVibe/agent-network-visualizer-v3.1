@@ -37,11 +37,33 @@ export class ConflictMechanics {
             attackerStrength: attackerClan.strength,
             victimStrength: victimClan.strength,
             stolenResources: 0,
-            polarizedConnections: 0
+            polarizedConnections: 0,
+            supporters: { attacker: [], victim: [], neutral: [] }
         };
 
-        // Фаза 1: Отъем ресурсов
-        const stolen = this._stealResources(attackerClan, victimClan, connectionMatrix, agents);
+        // Фаза 0: Выбор стороны агентами (включая свободных)
+        const sideSelection = this._selectSides(attackerClan, victimClan, connectionMatrix, agents);
+        conflictResult.supporters = sideSelection;
+
+        // Пересчет силы с учетом поддержки
+        const attackerTotalStrength = attackerClan.strength + sideSelection.attackerSupportStrength;
+        const victimTotalStrength = victimClan.strength + sideSelection.victimSupportStrength;
+
+        console.log(`Конфликт: Клан ${attackerClan.id} (сила ${attackerTotalStrength.toFixed(1)}) vs Клан ${victimClan.id} (сила ${victimTotalStrength.toFixed(1)})`);
+        console.log(`  Поддержка атакующего: ${sideSelection.attacker.length} агентов`);
+        console.log(`  Поддержка жертвы: ${sideSelection.victim.length} агентов`);
+        console.log(`  Нейтральные: ${sideSelection.neutral.length} агентов`);
+
+        // Фаза 1: Отъем ресурсов с учетом новой силы
+        const stolen = this._stealResourcesWithSupport(
+            attackerClan, 
+            victimClan, 
+            sideSelection,
+            attackerTotalStrength,
+            victimTotalStrength,
+            connectionMatrix, 
+            agents
+        );
         conflictResult.stolenResources = stolen;
 
         // Фаза 2: Поляризация связей
@@ -56,21 +78,83 @@ export class ConflictMechanics {
         // Сохранение в историю
         this.conflictHistory.push(conflictResult);
 
-        console.log(`Конфликт: Клан ${attackerClan.id} атакует клан ${victimClan.id}, украдено ${stolen.toFixed(2)} ресурсов`);
-
         return conflictResult;
     }
 
     /**
-     * Отъем ресурсов у жертвы с учетом соотношения сил кланов
-     * Успех атаки зависит от относительной силы кланов
+     * Выбор стороны агентами на основе их связей с кланами
+     * Агенты вне кланов выбирают, кого поддержать
      */
-    _stealResources(attackerClan, victimClan, connectionMatrix, agents) {
+    _selectSides(attackerClan, victimClan, connectionMatrix, agents) {
+        const result = {
+            attacker: [],
+            victim: [],
+            neutral: [],
+            attackerSupportStrength: 0,
+            victimSupportStrength: 0
+        };
+
+        // Получаем ID членов кланов
+        const attackerMemberIds = new Set(attackerClan.members.map(m => m.id));
+        const victimMemberIds = new Set(victimClan.members.map(m => m.id));
+
+        // Проверяем всех агентов
+        agents.forEach((agent, agentIndex) => {
+            if (!agent.economics || !agent.economics.alive) return;
+
+            // Пропускаем членов конфликтующих кланов
+            if (attackerMemberIds.has(agent.id) || victimMemberIds.has(agent.id)) {
+                return;
+            }
+
+            // Подсчет связей с каждым кланом
+            let connectionToAttacker = 0;
+            let connectionToVictim = 0;
+
+            attackerClan.memberIndices.forEach(memberIndex => {
+                if (connectionMatrix[agentIndex] && connectionMatrix[agentIndex][memberIndex] !== undefined) {
+                    connectionToAttacker += connectionMatrix[agentIndex][memberIndex];
+                }
+            });
+
+            victimClan.memberIndices.forEach(memberIndex => {
+                if (connectionMatrix[agentIndex] && connectionMatrix[agentIndex][memberIndex] !== undefined) {
+                    connectionToVictim += connectionMatrix[agentIndex][memberIndex];
+                }
+            });
+
+            // Решение на основе связей и ресурсов
+            const resourceFactor = agent.economics.currentResources / 20; // Нормализация
+            const attackerScore = connectionToAttacker + (resourceFactor * 0.2); // Богатые склонны к агрессии
+            const victimScore = connectionToVictim + ((1 / Math.max(0.1, resourceFactor)) * 0.1); // Бедные сочувствуют жертве
+
+            // Порог для выбора стороны
+            const threshold = 0.5;
+
+            if (attackerScore > victimScore + threshold) {
+                result.attacker.push(agent.id);
+                result.attackerSupportStrength += connectionToAttacker;
+            } else if (victimScore > attackerScore + threshold) {
+                result.victim.push(agent.id);
+                result.victimSupportStrength += connectionToVictim;
+            } else {
+                result.neutral.push(agent.id);
+            }
+        });
+
+        return result;
+    }
+
+    /**
+     * Отъем ресурсов у жертвы с учетом соотношения сил кланов и поддержки
+     * Успех атаки зависит от относительной силы кланов с учетом союзников
+     */
+    _stealResourcesWithSupport(attackerClan, victimClan, sideSelection, attackerTotalStrength, victimTotalStrength, connectionMatrix, agents) {
         let totalStolen = 0;
         const minSurvival = 10; // Минимум для выживания
 
-        // Расчет успешности атаки на основе соотношения сил
-        const strengthRatio = attackerClan.strength / Math.max(1, victimClan.strength);
+        // Расчет успешности атаки на основе соотношения сил С УЧЕТОМ ПОДДЕРЖКИ
+        const strengthRatio = attackerTotalStrength / Math.max(1, victimTotalStrength);
         const attackSuccess = this._sigmoid(strengthRatio - 1); // Сигмоида для плавного перехода
         
         // Базовая ставка кражи зависит от успеха атаки

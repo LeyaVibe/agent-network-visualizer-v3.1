@@ -466,6 +466,130 @@ export class ClanSystem {
     }
 
     /**
+     * Межклановое распределение излишков
+     * Кланы делят общий пул излишков по порядку силы
+     * Свободные агенты получают оставшуюся долю поровну
+     */
+    distributeInterClanSurplus(agents, connectionMatrix) {
+        if (this.clans.length === 0) return;
+
+        // Сортируем кланы по силе (от сильного к слабому)
+        const sortedClans = [...this.clans].sort((a, b) => b.strength - a.strength);
+
+        // Собираем общий пул излишков от всех агентов
+        let totalSurplus = 0;
+        const minSurvival = 10;
+
+        agents.forEach(agent => {
+            if (agent.economics && agent.economics.alive) {
+                const surplus = Math.max(0, agent.economics.currentResources - minSurvival * 1.5);
+                if (surplus > 0) {
+                    totalSurplus += surplus;
+                    agent.economics.currentResources -= surplus;
+                }
+            }
+        });
+
+        if (totalSurplus <= 0) return;
+
+        console.log(`Межклановое распределение: ${totalSurplus.toFixed(2)} излишков между ${sortedClans.length} кланами`);
+
+        // Распределяем между кланами пропорционально их силе
+        const totalStrength = sortedClans.reduce((sum, clan) => sum + clan.strength, 0);
+        let distributedToClans = 0;
+
+        sortedClans.forEach(clan => {
+            const clanShare = (clan.strength / totalStrength) * totalSurplus * 0.8; // 80% кланам
+            distributedToClans += clanShare;
+
+            // Распределяем долю клана между его членами
+            const memberShare = clanShare / clan.members.length;
+            clan.members.forEach(agent => {
+                if (agent.economics && agent.economics.alive) {
+                    agent.economics.currentResources += memberShare;
+                }
+            });
+
+            console.log(`  Клан ${clan.id}: получил ${clanShare.toFixed(2)} (${memberShare.toFixed(2)} на члена)`);
+        });
+
+        // Оставшиеся 20% распределяем между свободными агентами
+        const freeAgentsSurplus = totalSurplus - distributedToClans;
+        const freeAgents = this.getFreeAgents(agents);
+
+        if (freeAgents.length > 0 && freeAgentsSurplus > 0) {
+            const freeAgentShare = freeAgentsSurplus / freeAgents.length;
+            freeAgents.forEach(agent => {
+                if (agent.economics && agent.economics.alive) {
+                    agent.economics.currentResources += freeAgentShare;
+                }
+            });
+
+            console.log(`  Свободные агенты (${freeAgents.length}): получили ${freeAgentsSurplus.toFixed(2)} (${freeAgentShare.toFixed(2)} на агента)`);
+        }
+    }
+
+    /**
+     * Получение списка свободных агентов (не входящих в кланы)
+     */
+    getFreeAgents(agents) {
+        const clanMemberIds = new Set();
+        
+        this.clans.forEach(clan => {
+            clan.members.forEach(member => {
+                clanMemberIds.add(member.id);
+            });
+        });
+
+        return agents.filter(agent => 
+            agent.economics && 
+            agent.economics.alive && 
+            !clanMemberIds.has(agent.id)
+        );
+    }
+
+    /**
+     * Получение статистики по свободным агентам
+     */
+    getFreeAgentsStats(agents) {
+        const freeAgents = this.getFreeAgents(agents);
+        
+        if (freeAgents.length === 0) {
+            return {
+                count: 0,
+                totalResources: 0,
+                averageResources: 0,
+                minResources: 0,
+                maxResources: 0
+            };
+        }
+
+        let totalResources = 0;
+        let minResources = Infinity;
+        let maxResources = -Infinity;
+
+        freeAgents.forEach(agent => {
+            const resources = agent.economics.currentResources || 0;
+            totalResources += resources;
+            minResources = Math.min(minResources, resources);
+            maxResources = Math.max(maxResources, resources);
+        });
+
+        return {
+            count: freeAgents.length,
+            totalResources: totalResources,
+            averageResources: totalResources / freeAgents.length,
+            minResources: minResources === Infinity ? 0 : minResources,
+            maxResources: maxResources === -Infinity ? 0 : maxResources,
+            agents: freeAgents.map(agent => ({
+                id: agent.id,
+                resources: agent.economics.currentResources || 0,
+                accumulated: agent.economics.accumulatedResources || 0
+            }))
+        };
+    }
+
+    /**
      * Получение статистики по кланам
      */
     getClanStats() {

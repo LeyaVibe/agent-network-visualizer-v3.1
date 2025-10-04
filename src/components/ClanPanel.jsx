@@ -243,6 +243,49 @@ export default function ClanPanel({ params, onParamsChange, clanStats, conflictS
                 </>
             )}
 
+            {/* Статистика свободных агентов */}
+            {clanStats && clanStats.freeAgents && clanStats.freeAgents.count > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Свободные агенты
+                        </CardTitle>
+                        <CardDescription>
+                            Агенты, не входящие ни в один клан
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Количество</p>
+                                <p className="text-2xl font-bold">{clanStats.freeAgents.count}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Всего ресурсов</p>
+                                <p className="text-2xl font-bold text-green-600">
+                                    {clanStats.freeAgents.totalResources.toFixed(0)}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Средние ресурсы</p>
+                                <p className="text-2xl font-bold">
+                                    {clanStats.freeAgents.averageResources.toFixed(1)}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm text-muted-foreground">Диапазон</p>
+                                <p className="text-lg font-bold">
+                                    <span className="text-red-600">{clanStats.freeAgents.minResources.toFixed(0)}</span>
+                                    {' - '}
+                                    <span className="text-green-600">{clanStats.freeAgents.maxResources.toFixed(0)}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Статистика конфликтов */}
             {conflictStats && conflictStats.totalConflicts > 0 && (
                 <Card>
