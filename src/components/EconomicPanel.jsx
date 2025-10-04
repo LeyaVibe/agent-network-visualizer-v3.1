@@ -157,31 +157,77 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
 
             {/* Статистика экономики */}
             {params.enabled && economicStats && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Текущая экономическая статистика</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">Живых агентов</p>
-                                <p className="text-2xl font-bold">{economicStats.aliveCount || 0}</p>
+                <>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Текущая экономическая статистика</CardTitle>
+                            <CardDescription>Итоговые показатели после симуляции</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {/* Основные показатели */}
+                            <div>
+                                <h4 className="text-sm font-medium mb-3">Популяция</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Живых агентов</p>
+                                        <p className="text-2xl font-bold text-green-600">{economicStats.aliveCount || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Погибло</p>
+                                        <p className="text-2xl font-bold text-red-500">{economicStats.deadCount || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Уровень выживаемости</p>
+                                        <p className="text-2xl font-bold">
+                                            {((economicStats.aliveCount / (economicStats.aliveCount + economicStats.deadCount)) * 100).toFixed(1)}%
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Потери</p>
+                                        <p className="text-2xl font-bold text-orange-500">
+                                            {((economicStats.deadCount / (economicStats.aliveCount + economicStats.deadCount)) * 100).toFixed(1)}%
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">Погибло</p>
-                                <p className="text-2xl font-bold text-red-500">{economicStats.deadCount || 0}</p>
+
+                            <Separator />
+
+                            {/* Ресурсы */}
+                            <div>
+                                <h4 className="text-sm font-medium mb-3">Ресурсы</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Всего ресурсов</p>
+                                        <p className="text-2xl font-bold">{(economicStats.totalResources || 0).toFixed(0)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Средние ресурсы</p>
+                                        <p className="text-2xl font-bold">{(economicStats.averageResources || 0).toFixed(1)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Минимум</p>
+                                        <p className="text-xl font-bold text-red-600">{(economicStats.minResources || 0).toFixed(1)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Максимум</p>
+                                        <p className="text-xl font-bold text-green-600">{(economicStats.maxResources || 0).toFixed(1)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Всего накоплено</p>
+                                        <p className="text-xl font-bold text-blue-600">{(economicStats.totalAccumulated || 0).toFixed(0)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Неравенство (размах)</p>
+                                        <p className="text-xl font-bold">
+                                            {((economicStats.maxResources - economicStats.minResources) || 0).toFixed(1)}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">Средние ресурсы</p>
-                                <p className="text-2xl font-bold">{(economicStats.averageResources || 0).toFixed(1)}</p>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">Всего ресурсов</p>
-                                <p className="text-2xl font-bold">{(economicStats.totalResources || 0).toFixed(0)}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </>
             )}
 
             {/* Информационная карточка */}

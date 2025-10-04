@@ -68,10 +68,11 @@ export class EconomicEngine {
         const cappedSocialMultiplier = Math.min(socialMultiplier, this.maxMultiplier);
 
         // Фактор эффективности на основе текущих ресурсов
+        // Улучшенная формула: диапазон 0.8-1.0 вместо 0.5-1.0 для предотвращения "спирали смерти"
         const optimalResources = this.baseProductivity * 5; // Оптимальный уровень ресурсов
-        const efficiencyFactor = Math.min(
+        const efficiencyFactor = 0.8 + 0.2 * Math.min(
             1.0, 
-            Math.max(0.5, agent.economics.currentResources / optimalResources)
+            agent.economics.currentResources / optimalResources
         );
 
         // Итоговое производство
@@ -117,19 +118,37 @@ export class EconomicEngine {
                 results.survived++;
                 results.totalConsumed += consumption;
             } else {
-                // Увеличиваем счетчик голодания
-                agent.economics.starvationCounter++;
+                // Попытка использовать накопленные ресурсы
+                const deficit = consumption - agent.economics.currentResources;
                 
-                // Потребляем все доступные ресурсы
-                results.totalConsumed += agent.economics.currentResources;
-                agent.economics.currentResources = 0;
-                
-                // Агент умирает только после 3 циклов голодания
-                if (agent.economics.starvationCounter >= 3) {
-                    agent.economics.alive = false;
-                    results.died++;
-                } else {
+                if (agent.economics.accumulatedResources >= deficit) {
+                    // Используем накопления для покрытия дефицита
+                    agent.economics.accumulatedResources -= deficit;
+                    agent.economics.currentResources = 0;
+                    agent.economics.consumptionHistory.push(consumption);
+                    
+                    // Сброс счетчика голодания при успешном потреблении
+                    agent.economics.starvationCounter = Math.max(0, agent.economics.starvationCounter - 1);
+                    
                     results.survived++;
+                    results.totalConsumed += consumption;
+                } else {
+                    // Увеличиваем счетчик голодания
+                    agent.economics.starvationCounter++;
+                    
+                    // Потребляем все доступные ресурсы (текущие + накопленные)
+                    const totalAvailable = agent.economics.currentResources + agent.economics.accumulatedResources;
+                    results.totalConsumed += totalAvailable;
+                    agent.economics.currentResources = 0;
+                    agent.economics.accumulatedResources = 0;
+                    
+                    // Агент умирает только после 3 циклов голодания
+                    if (agent.economics.starvationCounter >= 3) {
+                        agent.economics.alive = false;
+                        results.died++;
+                    } else {
+                        results.survived++;
+                    }
                 }
             }
         });

@@ -126,62 +126,121 @@ export default function ClanPanel({ params, onParamsChange, clanStats, conflictS
 
             {/* Статистика кланов */}
             {clanStats && clanStats.totalClans > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5" />
-                            Текущие кланы ({clanStats.totalClans})
-                        </CardTitle>
-                        <CardDescription>
-                            Средний размер: {clanStats.averageSize.toFixed(1)} агентов
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ScrollArea className="h-[300px] pr-4">
-                            <div className="space-y-3">
-                                {clanStats.clans.map((clan) => (
-                                    <Card key={clan.id} className="border-2">
-                                        <CardContent className="pt-4">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="font-semibold">Клан {clan.id + 1}</h4>
-                                                    <div className="flex flex-col gap-1 items-end">
-                                                        <Badge className={DISTRIBUTION_RULES_COLORS[clan.rule]}>
-                                                            {DISTRIBUTION_RULES_LABELS[clan.rule] || 'Нет решения'}
-                                                        </Badge>
-                                                        {clan.subrule && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {DEMOCRACY_SUBRULES_LABELS[clan.subrule]}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                                    <div>
-                                                        <span className="text-muted-foreground">Размер:</span>
-                                                        <span className="ml-2 font-medium">{clan.size}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Сила:</span>
-                                                        <span className="ml-2 font-medium">{clan.strength}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Плотность:</span>
-                                                        <span className="ml-2 font-medium">{clan.density}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-muted-foreground">Ресурсы:</span>
-                                                        <span className="ml-2 font-medium">{clan.resources}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
+                <>
+                    {/* Общая статистика */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Общая статистика кланов
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Всего кланов</p>
+                                    <p className="text-2xl font-bold">{clanStats.totalClans}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Средний размер</p>
+                                    <p className="text-2xl font-bold">{clanStats.averageSize.toFixed(1)}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Всего членов</p>
+                                    <p className="text-2xl font-bold">
+                                        {clanStats.clans.reduce((sum, clan) => sum + clan.size, 0)}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Общие ресурсы</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        {clanStats.clans.reduce((sum, clan) => sum + clan.resources, 0).toFixed(0)}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Средняя плотность</p>
+                                    <p className="text-2xl font-bold">
+                                        {(clanStats.clans.reduce((sum, clan) => sum + parseFloat(clan.density), 0) / clanStats.totalClans).toFixed(2)}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Средняя сила</p>
+                                    <p className="text-2xl font-bold">
+                                        {(clanStats.clans.reduce((sum, clan) => sum + clan.strength, 0) / clanStats.totalClans).toFixed(0)}
+                                    </p>
+                                </div>
                             </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+
+                    {/* Детальная информация по кланам */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                Детальная информация по кланам
+                            </CardTitle>
+                            <CardDescription>
+                                Список всех {clanStats.totalClans} кланов с подробностями
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ScrollArea className="h-[400px] pr-4">
+                                <div className="space-y-3">
+                                    {clanStats.clans.map((clan) => (
+                                        <Card key={clan.id} className="border-2">
+                                            <CardContent className="pt-4">
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-semibold text-lg">Клан {clan.id + 1}</h4>
+                                                        <div className="flex flex-col gap-1 items-end">
+                                                            <Badge className={DISTRIBUTION_RULES_COLORS[clan.rule]}>
+                                                                {DISTRIBUTION_RULES_LABELS[clan.rule] || 'Нет решения'}
+                                                            </Badge>
+                                                            {clan.subrule && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {DEMOCRACY_SUBRULES_LABELS[clan.subrule]}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <Separator />
+                                                    
+                                                    <div className="grid grid-cols-3 gap-3 text-sm">
+                                                        <div className="space-y-1">
+                                                            <p className="text-muted-foreground">Размер</p>
+                                                            <p className="font-bold text-lg">{clan.size}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-muted-foreground">Сила</p>
+                                                            <p className="font-bold text-lg text-orange-600">{clan.strength}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-muted-foreground">Плотность</p>
+                                                            <p className="font-bold text-lg text-blue-600">{clan.density}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                                        <div className="space-y-1">
+                                                            <p className="text-muted-foreground">Всего ресурсов</p>
+                                                            <p className="font-bold text-lg text-green-600">{clan.resources.toFixed(0)}</p>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-muted-foreground">На члена</p>
+                                                            <p className="font-bold text-lg">{(clan.resources / clan.size).toFixed(1)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </>
             )}
 
             {/* Статистика конфликтов */}
