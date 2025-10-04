@@ -100,42 +100,47 @@ export class EventLogger {
      * Генерация описания события
      */
     _generateDescription(type, data) {
+        // Безопасная функция для форматирования чисел
+        const safeFixed = (value, decimals = 2) => {
+            return (value !== undefined && value !== null) ? Number(value).toFixed(decimals) : '0';
+        };
+
         switch (type) {
             case EVENT_TYPES.AGENT_BIRTH:
                 return `Агент ${data.agentId} родился в кластере ${data.cluster}`;
             
             case EVENT_TYPES.AGENT_DEATH:
-                return `Агент ${data.agentId} умер от ${data.cause || 'неизвестной причины'} (ресурсы: ${data.resources?.toFixed(2) || 0})`;
+                return `Агент ${data.agentId} умер от ${data.cause || 'неизвестной причины'} (ресурсы: ${safeFixed(data.resources)})`;
             
             case EVENT_TYPES.RESOURCE_PRODUCTION:
-                return `Агент ${data.agentId} произвел ${data.amount.toFixed(2)} ресурсов (множитель: ${data.multiplier?.toFixed(2) || 1})`;
+                return `Агент ${data.agentId || 'N/A'} произвел ${safeFixed(data.amount)} ресурсов (множитель: ${safeFixed(data.multiplier, 2) || 1})`;
             
             case EVENT_TYPES.STARVATION_WARNING:
-                return `Агент ${data.agentId} голодает ${data.starvationDays} дней (ресурсы: ${data.resources.toFixed(2)})`;
+                return `Агент ${data.agentId} голодает ${data.starvationDays || 0} дней (ресурсы: ${safeFixed(data.resources)})`;
             
             case EVENT_TYPES.ECONOMIC_BOOM:
-                return `Экономический бум! Средние ресурсы: ${data.averageResources.toFixed(2)} (+${data.growthRate.toFixed(1)}%)`;
+                return `Экономический бум! Средние ресурсы: ${safeFixed(data.averageResources)} (+${safeFixed(data.growthRate, 1)}%)`;
             
             case EVENT_TYPES.ECONOMIC_CRISIS:
-                return `Экономический кризис! ${data.deathRate.toFixed(1)}% агентов умерло за цикл`;
+                return `Экономический кризис! ${safeFixed(data.deathRate, 1)}% агентов умерло за цикл`;
             
             case EVENT_TYPES.CLAN_FORMED:
-                return `Клан ${data.clanId} сформирован (${data.memberCount} членов, плотность: ${data.density.toFixed(2)})`;
+                return `Клан ${data.clanId} сформирован (${data.memberCount || 0} членов, плотность: ${safeFixed(data.density)})`;
             
             case EVENT_TYPES.CLAN_DECISION_MADE:
-                return `Клан ${data.clanId} выбрал ${data.decision} (голосов: ${data.votes})`;
+                return `Клан ${data.clanId} выбрал ${data.decision} (голосов: ${data.votes || 0})`;
             
             case EVENT_TYPES.CONFLICT_INITIATED:
-                return `Клан ${data.attackerId} атакует клан ${data.victimId} (сила: ${data.attackerStrength.toFixed(1)} vs ${data.victimStrength.toFixed(1)})`;
+                return `Клан ${data.attackerId} атакует клан ${data.victimId} (сила: ${safeFixed(data.attackerStrength, 1)} vs ${safeFixed(data.victimStrength, 1)})`;
             
             case EVENT_TYPES.RESOURCE_THEFT:
-                return `Украдено ${data.amount.toFixed(2)} ресурсов у клана ${data.victimId}`;
+                return `Украдено ${safeFixed(data.amount)} ресурсов у клана ${data.victimId}`;
             
             case EVENT_TYPES.CONNECTION_FORMED:
-                return `Связь образована между агентами ${data.agent1} и ${data.agent2} (сила: ${data.strength.toFixed(2)})`;
+                return `Связь образована между агентами ${data.agent1} и ${data.agent2} (сила: ${safeFixed(data.strength)})`;
             
             case EVENT_TYPES.POLARIZATION_EVENT:
-                return `Поляризация: ${data.connectionCount} связей ослаблены на ${data.averageWeakening.toFixed(1)}%`;
+                return `Поляризация: ${data.connectionCount || 0} связей ослаблены на ${safeFixed(data.averageWeakening, 1)}%`;
             
             case EVENT_TYPES.MILESTONE_REACHED:
                 return `Достигнута веха: ${data.milestone} (цикл ${data.cycle})`;
