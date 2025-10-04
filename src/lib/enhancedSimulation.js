@@ -5,12 +5,9 @@
 
 import { runSimulation, cosineSimilarity } from './agentSimulation.js';
 import { EconomicEngine } from './economicEngine.js';
-import { EnhancedEconomicEngine } from './enhancedEconomicEngine.js';
 import { ClanSystem } from './clanSystem.js';
-import { EnhancedClanSystem } from './enhancedClanSystem.js';
 import { ConflictMechanics } from './conflictMechanics.js';
 import { safeClanStats } from './clanStatsHelper.js';
-import { EventLogger } from './eventLogger.js';
 
 /**
  * Запуск расширенной симуляции с экономикой
@@ -35,8 +32,7 @@ export function runEnhancedSimulation(params) {
     // Получаем интервал экономических циклов из параметров
     const economicCycleInterval = economicParams.economicCycleInterval || 5;
 
-    // Инициализация системы логирования событий
-    const eventLogger = new EventLogger();
+    // Используем только базовые системы без логирования событий
     
     // Инициализация базовых систем (отключаем расширенные до полного исправления)
     let economicEngine;
@@ -97,8 +93,7 @@ export function runEnhancedSimulation(params) {
                 economicEngine,
                 clanSystem,
                 conflictMechanics,
-                cycle,
-                eventLogger
+                cycle
             );
 
             // Сохранение статистики
@@ -197,7 +192,7 @@ function executeSocialCycle(agents, topics, connections, threshold) {
 /**
  * Выполнение расширенного экономического цикла
  */
-function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics, cycle = 0, eventLogger = null) {
+function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics, cycle = 0) {
     // Фаза 1: Производство и потребление с расширенной экономикой
     const economicResult = economicEngine.executeEconomicCycle(agents, connections, cycle);
 
@@ -313,7 +308,7 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
         economicStats: economicStats,
         clans: clanStats,
         conflicts: conflicts,
-        events: eventLogger ? eventLogger.getRecentEvents(10) : []
+        events: []
     };
 }
 
@@ -361,20 +356,19 @@ function selectTopicForCommunication(agent1, agent2, topics) {
  * Получение детальной статистики по расширенной экономической симуляции
  */
 export function getEnhancedSimulationStats(agents, economicHistory, clanHistory, eventHistory) {
-    const eventLogger = new EventLogger();
-    const economicEngine = new EnhancedEconomicEngine({}, eventLogger);
-    const clanSystem = new EnhancedClanSystem({}, eventLogger);
+    const economicEngine = new EconomicEngine({});
+    const clanSystem = new ClanSystem({});
     
     // Инициализация для получения статистики
-    economicEngine.initializeAgentEconomics(agents);
+    if (economicEngine.initializeAgentEconomics) {
+        economicEngine.initializeAgentEconomics(agents);
+    }
     
-    const currentEconomicStats = economicEngine.getEnhancedEconomicStats ? 
-        economicEngine.getEnhancedEconomicStats(agents) : 
-        economicEngine.getEconomicStats(agents);
+    const currentEconomicStats = economicEngine.getEconomicStats ? 
+        economicEngine.getEconomicStats(agents) : {};
     
-    const currentClanStats = clanSystem.getEnhancedClanStats ? 
-        clanSystem.getEnhancedClanStats(new Map()) : 
-        clanSystem.getClanStats();
+    const currentClanStats = clanSystem.getClanStats ? 
+        clanSystem.getClanStats() : {};
 
     return {
         current: {
