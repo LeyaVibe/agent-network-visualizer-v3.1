@@ -101,28 +101,41 @@ export class ClanSystem {
     }
 
     /**
-     * Расчет плотности связей внутри группы агентов
-     * Плотность = количество существующих связей / максимально возможное количество связей
+     * Расчет взвешенной плотности связей внутри группы агентов
+     * Учитывает не только наличие связей, но и их силу
      */
     _calculateDensity(agentIndices, connectionMatrix) {
         const n = agentIndices.length;
         if (n < 2) return 0;
 
-        const maxConnections = (n * (n - 1)) / 2; // Максимально возможное количество связей
-        let actualConnections = 0;
+        const maxConnections = (n * (n - 1)) / 2;
+        let totalWeight = 0;
+        let connectionCount = 0;
+        const significantThreshold = 0.1; // Минимальная значимая сила связи
 
         for (let i = 0; i < agentIndices.length; i++) {
             for (let j = i + 1; j < agentIndices.length; j++) {
                 const idx1 = agentIndices[i];
                 const idx2 = agentIndices[j];
 
-                if (connectionMatrix[idx1] && connectionMatrix[idx1][idx2] !== undefined && connectionMatrix[idx1][idx2] > 0) {
-                    actualConnections++;
+                if (connectionMatrix[idx1] && connectionMatrix[idx1][idx2] !== undefined) {
+                    const weight = connectionMatrix[idx1][idx2];
+                    if (weight >= significantThreshold) {
+                        totalWeight += weight;
+                        connectionCount++;
+                    }
                 }
             }
         }
 
-        return actualConnections / maxConnections;
+        if (connectionCount === 0) return 0;
+
+        // Взвешенная плотность: учитывает и количество связей, и их силу
+        const connectionDensity = connectionCount / maxConnections;
+        const averageWeight = totalWeight / connectionCount;
+        
+        // Комбинированная метрика: плотность связей * средняя сила связей
+        return connectionDensity * averageWeight;
     }
 
     /**
@@ -140,20 +153,43 @@ export class ClanSystem {
     }
 
     /**
-     * Расчет силы отдельного агента внутри клана
+     * Расчет комплексной силы агента с учетом внутренних и внешних связей
      */
     _calculateAgentStrength(agentIndex, clanMemberIndices, connectionMatrix) {
-        let strength = 0;
+        let internalStrength = 0;
+        let externalStrength = 0;
+        let totalConnections = 0;
 
+        if (!connectionMatrix[agentIndex]) return 0;
+
+        // Подсчет внутренних связей (внутри клана)
         clanMemberIndices.forEach(otherIndex => {
             if (otherIndex !== agentIndex) {
-                if (connectionMatrix[agentIndex] && connectionMatrix[agentIndex][otherIndex] !== undefined) {
-                    strength += connectionMatrix[agentIndex][otherIndex];
+                const weight = connectionMatrix[agentIndex][otherIndex] || 0;
+                if (weight > 0) {
+                    internalStrength += weight;
+                    totalConnections++;
                 }
             }
         });
 
-        return strength;
+        // Подсчет внешних связей (вне клана)
+        for (let i = 0; i < connectionMatrix[agentIndex].length; i++) {
+            if (i !== agentIndex && !clanMemberIndices.includes(i)) {
+                const weight = connectionMatrix[agentIndex][i] || 0;
+                if (weight > 0) {
+                    externalStrength += weight * 0.5; // Внешние связи менее важны для клана
+                    totalConnections++;
+                }
+            }
+        }
+
+        // Нормализация по количеству связей для справедливого сравнения
+        const normalizedStrength = totalConnections > 0 
+            ? (internalStrength + externalStrength) / Math.sqrt(totalConnections)
+            : 0;
+
+        return normalizedStrength;
     }
 
     /**
@@ -171,7 +207,7 @@ export class ClanSystem {
 
     /**
      * Принятие решения кланом о правилах распределения
-     * Каждый агент голосует случайно, побеждает большинство
+     * Агенты голосуют на основе своих интересов и положения в клане
      */
     makeClanDecision(clan) {
         const votes = {
@@ -180,11 +216,57 @@ export class ClanSystem {
             [DISTRIBUTION_RULES.LAWLESSNESS]: 0
         };
 
-        // Каждый член клана голосует
-        clan.members.forEach(() => {
-            const rules = Object.values(DISTRIBUTION_RULES);
-            const randomRule = rules[Math.floor(Math.random() * rules.length)];
-            votes[randomRule]++;
+        // Расчет средних ресурсов клана для сравнения
+        const averageResources = clan.totalResources / clan.members.length;
+
+        // Каждый член клана голосует на основе своих интересов
+        clan.members.forEach((agent, index) => {
+            if (!agent.economics || !agent.economics.alive) return;
+
+            const agentIndex = clan.memberIndices[index];
+            const agentStrength = this._calculateAgentStrength(agentIndex, clan.memberIndices, []);
+            const resourceRatio = agent.economics.currentResources / averageResources;
+            const survivalPressure = 10 / Math.max(1, agent.economics.currentResources); // Минимум выживания / текущие ресурсы
+
+            // Вероятности голосования на основе интересов агента
+            let dictatorshipWeight = 0;
+            let democracyWeight = 0;
+            let lawlessnessWeight = 0;
+
+            // Сильные агенты с большими ресурсами предпочитают диктатуру
+            if (agentStrength > clan.strength / clan.members.length && resourceRatio > 1.2) {
+                dictatorshipWeight = 0.6;
+                democracyWeight = 0.3;
+                lawlessnessWeight = 0.1;
+            }
+            // Слабые агенты с малыми ресурсами предпочитают демократию
+            else if (agentStrength < clan.strength / clan.members.length && resourceRatio < 0.8) {
+                dictatorshipWeight = 0.1;
+                democracyWeight = 0.7;
+                lawlessnessWeight = 0.2;
+            }
+            // Агенты под давлением выживания склонны к беспределу
+            else if (survivalPressure > 1.5) {
+                dictatorshipWeight = 0.2;
+                democracyWeight = 0.2;
+                lawlessnessWeight = 0.6;
+            }
+            // Средние агенты предпочитают демократию
+            else {
+                dictatorshipWeight = 0.2;
+                democracyWeight = 0.6;
+                lawlessnessWeight = 0.2;
+            }
+
+            // Случайный выбор на основе весов
+            const random = Math.random();
+            if (random < dictatorshipWeight) {
+                votes[DISTRIBUTION_RULES.DICTATORSHIP]++;
+            } else if (random < dictatorshipWeight + democracyWeight) {
+                votes[DISTRIBUTION_RULES.DEMOCRACY]++;
+            } else {
+                votes[DISTRIBUTION_RULES.LAWLESSNESS]++;
+            }
         });
 
         // Определяем победителя
@@ -250,7 +332,7 @@ export class ClanSystem {
     }
 
     /**
-     * Диктатура - сильнейший забирает все
+     * Диктатура - сильнейший забирает большую часть излишков
      */
     _distributeDictatorship(clan, connectionMatrix, agents) {
         // Находим сильнейшего агента
@@ -267,18 +349,23 @@ export class ClanSystem {
 
         if (!strongestAgent || !strongestAgent.economics) return;
 
-        // Собираем все излишки
-        let totalSurplus = 0;
+        const minSurvival = 10; // Фиксированный минимум выживания
+        const taxRate = 0.6; // Диктатор забирает 60% излишков
+
+        // Собираем налог с излишков
+        let totalTax = 0;
         clan.members.forEach(agent => {
             if (agent.economics && agent.economics.alive && agent !== strongestAgent) {
-                const surplus = Math.max(0, agent.economics.currentResources - agent.economics.minSurvival);
-                totalSurplus += surplus;
-                agent.economics.currentResources = agent.economics.minSurvival;
+                const surplus = Math.max(0, agent.economics.currentResources - minSurvival * 1.5);
+                const tax = surplus * taxRate;
+                totalTax += tax;
+                agent.economics.currentResources -= tax;
             }
         });
 
-        // Отдаем все сильнейшему
-        strongestAgent.economics.currentResources += totalSurplus;
+        // Диктатор получает собранный налог (с учетом административных расходов)
+        const overhead = 0.1; // 10% административных расходов
+        strongestAgent.economics.currentResources += totalTax * (1 - overhead);
     }
 
     /**

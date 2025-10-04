@@ -13,6 +13,13 @@ export class ConflictMechanics {
     }
 
     /**
+     * Сигмоидная функция для плавных переходов
+     */
+    _sigmoid(x) {
+        return 1 / (1 + Math.exp(-x));
+    }
+
+    /**
      * Выполнение конфликта между атакующим и жертвой
      */
     executeConflict(attackerClan, victimClan, connectionMatrix, agents) {
@@ -55,25 +62,36 @@ export class ConflictMechanics {
     }
 
     /**
-     * Отъем ресурсов у жертвы
-     * Отбирается: часть текущих ресурсов (50%) + resourceStealRatio накопленных
-     * Жертвам оставляется минимум для выживания
+     * Отъем ресурсов у жертвы с учетом соотношения сил кланов
+     * Успех атаки зависит от относительной силы кланов
      */
     _stealResources(attackerClan, victimClan, connectionMatrix, agents) {
         let totalStolen = 0;
         const minSurvival = 10; // Минимум для выживания
 
+        // Расчет успешности атаки на основе соотношения сил
+        const strengthRatio = attackerClan.strength / Math.max(1, victimClan.strength);
+        const attackSuccess = this._sigmoid(strengthRatio - 1); // Сигмоида для плавного перехода
+        
+        // Базовая ставка кражи зависит от успеха атаки
+        const baseStealRate = 0.3 + (attackSuccess * 0.4); // От 30% до 70%
+        
+        // Защитный фактор жертвы
+        const victimDefense = Math.min(0.5, victimClan.members.length / 20); // Больше членов = лучше защита
+
         // Подсчет ресурсов жертвы
         victimClan.members.forEach(victim => {
             if (victim.economics && victim.economics.alive) {
-                // Текущие ресурсы
+                // Эффективная ставка кражи для этого агента
+                const effectiveStealRate = baseStealRate * (1 - victimDefense);
+                
+                // Текущие ресурсы - крадем только излишки
                 const currentResources = victim.economics.currentResources;
+                const currentSurplus = Math.max(0, currentResources - minSurvival * 1.2);
+                const currentSteal = currentSurplus * effectiveStealRate;
                 
-                // Красть 50% текущих ресурсов, но оставить минимум для выживания
-                const currentSteal = Math.max(0, (currentResources - minSurvival) * 0.5);
-                
-                // Часть накопленных ресурсов
-                const accumulatedSteal = victim.economics.accumulatedResources * this.resourceStealRatio;
+                // Накопленные ресурсы - крадем меньший процент
+                const accumulatedSteal = victim.economics.accumulatedResources * effectiveStealRate * 0.5;
 
                 // Общая сумма кражи
                 const stolen = currentSteal + accumulatedSteal;
@@ -104,25 +122,25 @@ export class ConflictMechanics {
                     }
                 });
                 
-                return strength;
+                return { agent: attacker, strength: strength };
             });
 
-            const totalStrength = strengths.reduce((a, b) => a + b, 0);
+            const totalAttackerStrength = strengths.reduce((sum, s) => sum + s.strength, 0);
 
-            if (totalStrength > 0) {
-                // Распределяем пропорционально силе
-                attackerClan.members.forEach((attacker, idx) => {
-                    if (attacker.economics && attacker.economics.alive) {
-                        const share = strengths[idx] / totalStrength;
-                        attacker.economics.currentResources += totalStolen * share;
+            // Распределяем украденное пропорционально силе
+            if (totalAttackerStrength > 0) {
+                strengths.forEach(({ agent, strength }) => {
+                    if (agent.economics && agent.economics.alive) {
+                        const share = (strength / totalAttackerStrength) * totalStolen;
+                        agent.economics.currentResources += share;
                     }
                 });
             } else {
-                // Если нет связей, распределяем поровну
-                const perAttacker = totalStolen / attackerClan.members.length;
-                attackerClan.members.forEach(attacker => {
-                    if (attacker.economics && attacker.economics.alive) {
-                        attacker.economics.currentResources += perAttacker;
+                // Если нет данных о силе, распределяем поровну
+                const sharePerAgent = totalStolen / attackerClan.members.length;
+                attackerClan.members.forEach(agent => {
+                    if (agent.economics && agent.economics.alive) {
+                        agent.economics.currentResources += sharePerAgent;
                     }
                 });
             }
@@ -133,33 +151,34 @@ export class ConflictMechanics {
 
     /**
      * Поляризация связей между враждующими кланами
-     * Связи ослабляются в polarizationFactor раз
+     * Связи ослабляются экспоненциально в зависимости от интенсивности конфликта
      */
     _polarizeConnections(attackerClan, victimClan, connectionMatrix, agents) {
         let polarizedCount = 0;
+        
+        // Интенсивность конфликта на основе соотношения сил
+        const strengthRatio = attackerClan.strength / Math.max(1, victimClan.strength);
+        const conflictIntensity = Math.min(2.0, Math.max(0.5, strengthRatio));
 
-        // Для каждой пары агентов из разных кланов
-        attackerClan.members.forEach(attacker => {
-            const attackerIndex = agents.indexOf(attacker);
-
-            victimClan.members.forEach(victim => {
-                const victimIndex = agents.indexOf(victim);
-
-                // Ослабляем связь в обе стороны
-                if (connectionMatrix[attackerIndex] && 
-                    connectionMatrix[attackerIndex][victimIndex] !== undefined) {
-                    
-                    const oldStrength = connectionMatrix[attackerIndex][victimIndex];
-                    connectionMatrix[attackerIndex][victimIndex] = oldStrength / this.polarizationFactor;
-                    polarizedCount++;
-                }
-
-                if (connectionMatrix[victimIndex] && 
-                    connectionMatrix[victimIndex][attackerIndex] !== undefined) {
-                    
-                    const oldStrength = connectionMatrix[victimIndex][attackerIndex];
-                    connectionMatrix[victimIndex][attackerIndex] = oldStrength / this.polarizationFactor;
-                    polarizedCount++;
+        // Поляризация связей между кланами
+        attackerClan.memberIndices.forEach(attackerIndex => {
+            victimClan.memberIndices.forEach(victimIndex => {
+                if (connectionMatrix[attackerIndex] && connectionMatrix[attackerIndex][victimIndex] !== undefined) {
+                    const originalWeight = connectionMatrix[attackerIndex][victimIndex];
+                    if (originalWeight > 0) {
+                        // Экспоненциальное ослабление связи
+                        const polarizationEffect = 1 - Math.exp(-conflictIntensity / 2);
+                        const newWeight = originalWeight * (1 - polarizationEffect);
+                        
+                        connectionMatrix[attackerIndex][victimIndex] = newWeight;
+                        
+                        // Симметричное обновление
+                        if (connectionMatrix[victimIndex] && connectionMatrix[victimIndex][attackerIndex] !== undefined) {
+                            connectionMatrix[victimIndex][attackerIndex] = newWeight;
+                        }
+                        
+                        polarizedCount++;
+                    }
                 }
             });
         });
@@ -168,125 +187,10 @@ export class ConflictMechanics {
     }
 
     /**
-     * Проверка, нужен ли конфликт для данного клана
+     * Получение истории конфликтов
      */
-    shouldInitiateConflict(clan) {
-        return clan.decision && clan.decision.rule === DISTRIBUTION_RULES.LAWLESSNESS;
-    }
-
-    /**
-     * Обработка всех потенциальных конфликтов в текущем цикле
-     */
-    processConflicts(clans, connectionMatrix, agents) {
-        const conflicts = [];
-
-        // Находим кланы, выбравшие "беспредел"
-        const aggressiveClans = clans.filter(clan => this.shouldInitiateConflict(clan));
-
-        if (aggressiveClans.length === 0) {
-            return conflicts;
-        }
-
-        // Для каждого агрессивного клана
-        aggressiveClans.forEach(attackerClan => {
-            // Находим самый слабый клан (исключая самого атакующего)
-            const potentialVictims = clans.filter(c => c.id !== attackerClan.id);
-
-            if (potentialVictims.length === 0) {
-                return; // Нет кого атаковать
-            }
-
-            const victimClan = this._findWeakestClan(potentialVictims);
-
-            if (victimClan) {
-                const conflict = this.executeConflict(
-                    attackerClan,
-                    victimClan,
-                    connectionMatrix,
-                    agents
-                );
-
-                if (conflict) {
-                    conflicts.push(conflict);
-                }
-            }
-        });
-
-        return conflicts;
-    }
-
-    /**
-     * Поиск самого слабого клана из списка
-     */
-    _findWeakestClan(clans) {
-        if (clans.length === 0) return null;
-
-        let weakestClan = clans[0];
-        let minStrength = weakestClan.strength;
-
-        clans.forEach(clan => {
-            if (clan.strength < minStrength) {
-                minStrength = clan.strength;
-                weakestClan = clan;
-            }
-        });
-
-        return weakestClan;
-    }
-
-    /**
-     * Получение статистики по конфликтам
-     */
-    getConflictStats() {
-        if (this.conflictHistory.length === 0) {
-            return {
-                totalConflicts: 0,
-                totalResourcesStolen: 0,
-                totalConnectionsPolarized: 0,
-                averageResourcesPerConflict: 0,
-                mostAggressiveClan: null,
-                mostVictimizedClan: null
-            };
-        }
-
-        const totalResourcesStolen = this.conflictHistory.reduce(
-            (sum, c) => sum + c.stolenResources,
-            0
-        );
-
-        const totalConnectionsPolarized = this.conflictHistory.reduce(
-            (sum, c) => sum + c.polarizedConnections,
-            0
-        );
-
-        // Подсчет самого агрессивного клана
-        const attackerCounts = {};
-        const victimCounts = {};
-
-        this.conflictHistory.forEach(conflict => {
-            attackerCounts[conflict.attackerId] = (attackerCounts[conflict.attackerId] || 0) + 1;
-            victimCounts[conflict.victimId] = (victimCounts[conflict.victimId] || 0) + 1;
-        });
-
-        const mostAggressiveClan = Object.entries(attackerCounts).reduce(
-            (max, [id, count]) => count > (max.count || 0) ? { id: parseInt(id), count } : max,
-            {}
-        );
-
-        const mostVictimizedClan = Object.entries(victimCounts).reduce(
-            (max, [id, count]) => count > (max.count || 0) ? { id: parseInt(id), count } : max,
-            {}
-        );
-
-        return {
-            totalConflicts: this.conflictHistory.length,
-            totalResourcesStolen: totalResourcesStolen,
-            totalConnectionsPolarized: totalConnectionsPolarized,
-            averageResourcesPerConflict: totalResourcesStolen / this.conflictHistory.length,
-            mostAggressiveClan: mostAggressiveClan.id !== undefined ? mostAggressiveClan : null,
-            mostVictimizedClan: mostVictimizedClan.id !== undefined ? mostVictimizedClan : null,
-            recentConflicts: this.conflictHistory.slice(-10) // Последние 10 конфликтов
-        };
+    getConflictHistory() {
+        return this.conflictHistory;
     }
 
     /**
@@ -294,13 +198,6 @@ export class ConflictMechanics {
      */
     clearHistory() {
         this.conflictHistory = [];
-    }
-
-    /**
-     * Получение детальной истории конфликтов
-     */
-    getConflictHistory() {
-        return [...this.conflictHistory];
     }
 }
 

@@ -33,39 +33,49 @@ export class EconomicEngine {
 
     /**
      * Расчет производства ресурсов для агента
-     * Формула: production = baseProductivity * (1 + connectionBonus)
-     * connectionBonus = min(strongConnections * 0.1, maxMultiplier - 1.0)
+     * Улучшенная формула с учетом качества связей и экономической эффективности
      */
     calculateProduction(agent, connectionMatrix, agentIndex, agents) {
         if (!agent.economics || !agent.economics.alive) {
             return 0;
         }
 
-        // Подсчет сильных связей (>= strongConnectionThreshold)
-        // Исключаем self-loop и мертвых агентов
-        let strongConnections = 0;
+        // Расчет социального множителя на основе качества связей
+        let totalConnectionWeight = 0;
+        let connectionCount = 0;
+        
         if (connectionMatrix && connectionMatrix[agentIndex]) {
             for (let j = 0; j < connectionMatrix[agentIndex].length; j++) {
                 if (j === agentIndex) continue; // Пропускаем self-loop
                 
-                // Проверяем, что другой агент жив (если agents передан)
+                // Проверяем, что другой агент жив
                 if (agents && agents[j].economics && !agents[j].economics.alive) continue;
                 
                 const strength = connectionMatrix[agentIndex][j];
                 if (strength >= this.strongConnectionThreshold) {
-                    strongConnections++;
+                    totalConnectionWeight += strength;
+                    connectionCount++;
                 }
             }
         }
 
-        // Расчет бонуса от связей
-        const connectionBonus = Math.min(
-            strongConnections * this.connectionBonus,
-            this.maxMultiplier - 1.0
+        // Социальный множитель с убывающей отдачей
+        const socialMultiplier = connectionCount > 0 
+            ? 1 + (totalConnectionWeight * this.connectionBonus) / (1 + connectionCount * 0.1)
+            : 1;
+
+        // Ограничиваем максимальный множитель
+        const cappedSocialMultiplier = Math.min(socialMultiplier, this.maxMultiplier);
+
+        // Фактор эффективности на основе текущих ресурсов
+        const optimalResources = this.baseProductivity * 5; // Оптимальный уровень ресурсов
+        const efficiencyFactor = Math.min(
+            1.0, 
+            Math.max(0.5, agent.economics.currentResources / optimalResources)
         );
 
         // Итоговое производство
-        const production = this.baseProductivity * (1 + connectionBonus);
+        const production = this.baseProductivity * cappedSocialMultiplier * efficiencyFactor;
 
         // Сохранение в историю
         agent.economics.productionHistory.push(production);
@@ -75,7 +85,7 @@ export class EconomicEngine {
 
     /**
      * Обработка потребления ресурсов всеми агентами
-     * Агенты, у которых недостаточно ресурсов, умирают
+     * Агенты умирают только после нескольких циклов голодания
      */
     processConsumption(agents) {
         const results = {
@@ -89,19 +99,38 @@ export class EconomicEngine {
                 return;
             }
 
+            // Инициализация счетчика голодания если его нет
+            if (agent.economics.starvationCounter === undefined) {
+                agent.economics.starvationCounter = 0;
+            }
+
             const consumption = this.minSurvival;
 
             // Проверка достаточности ресурсов
             if (agent.economics.currentResources >= consumption) {
                 agent.economics.currentResources -= consumption;
                 agent.economics.consumptionHistory.push(consumption);
+                
+                // Сброс счетчика голодания при успешном потреблении
+                agent.economics.starvationCounter = Math.max(0, agent.economics.starvationCounter - 1);
+                
                 results.survived++;
                 results.totalConsumed += consumption;
             } else {
-                // Агент умирает от нехватки ресурсов
-                agent.economics.alive = false;
+                // Увеличиваем счетчик голодания
+                agent.economics.starvationCounter++;
+                
+                // Потребляем все доступные ресурсы
+                results.totalConsumed += agent.economics.currentResources;
                 agent.economics.currentResources = 0;
-                results.died++;
+                
+                // Агент умирает только после 3 циклов голодания
+                if (agent.economics.starvationCounter >= 3) {
+                    agent.economics.alive = false;
+                    results.died++;
+                } else {
+                    results.survived++;
+                }
             }
         });
 
@@ -126,6 +155,17 @@ export class EconomicEngine {
                 const production = this.calculateProduction(agent, connectionMatrix, index, agents);
                 agent.economics.currentResources += production;
                 cycleResults.totalProduction += production;
+            }
+        });
+
+        // Фаза 1.5: Накопление излишков
+        agents.forEach(agent => {
+            if (agent.economics && agent.economics.alive) {
+                const survivalThreshold = this.minSurvival * 2; // Буферный запас
+                if (agent.economics.currentResources > survivalThreshold) {
+                    const surplus = agent.economics.currentResources - survivalThreshold;
+                    agent.economics.accumulatedResources += surplus * 0.1; // 10% излишков накапливается
+                }
             }
         });
 
