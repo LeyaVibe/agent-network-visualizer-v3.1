@@ -339,7 +339,9 @@ function App() {
       if (economicParams.enabled && simulationResult.economicHistory) {
         const enhancedStats = getEnhancedSimulationStats(
           simulationResult.agents,
-          simulationResult.economicHistory
+          simulationResult.economicHistory.economic,
+          simulationResult.economicHistory.clans,
+          []
         );
         
         setEconomicStats(enhancedStats.current.economic);
