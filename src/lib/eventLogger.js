@@ -281,7 +281,7 @@ export class EventLogger {
     }
 
     /**
-     * Анализ экономических трендов
+     * Анализ экономических трендов - ИСПРАВЛЕНО
      */
     _analyzeEconomicTrends() {
         const economicEvents = this.events.filter(e => 
@@ -289,73 +289,177 @@ export class EventLogger {
              EVENT_TYPES.ECONOMIC_CRISIS, EVENT_TYPES.STARVATION_WARNING].includes(e.type)
         );
         
+        // Если нет экономических событий, возвращаем базовые значения
+        if (economicEvents.length === 0) {
+            return {
+                trend: 'stable',
+                stability: 0.85, // 85% стабильности по умолчанию
+                recentCrises: 0,
+                recentBooms: 0
+            };
+        }
+        
         const recentEvents = economicEvents.slice(-20);
         const crisisEvents = recentEvents.filter(e => e.type === EVENT_TYPES.ECONOMIC_CRISIS);
         const boomEvents = recentEvents.filter(e => e.type === EVENT_TYPES.ECONOMIC_BOOM);
+        const starvationEvents = recentEvents.filter(e => e.type === EVENT_TYPES.STARVATION_WARNING);
+        
+        // Определение тренда на основе соотношения позитивных и негативных событий
+        let trend = 'stable';
+        if (boomEvents.length > crisisEvents.length + starvationEvents.length) {
+            trend = 'positive';
+        } else if (crisisEvents.length + starvationEvents.length > boomEvents.length) {
+            trend = 'negative';
+        }
+        
+        // Расчет стабильности: чем меньше кризисов и голода, тем выше стабильность
+        const negativeEvents = crisisEvents.length + starvationEvents.length;
+        const totalRecentEvents = Math.max(1, recentEvents.length);
+        const stability = Math.max(0.1, Math.min(1.0, 1 - (negativeEvents / totalRecentEvents)));
         
         return {
-            trend: boomEvents.length > crisisEvents.length ? 'positive' : 'negative',
-            stability: Math.max(0, 1 - (crisisEvents.length / Math.max(1, recentEvents.length))),
+            trend,
+            stability,
             recentCrises: crisisEvents.length,
             recentBooms: boomEvents.length
         };
     }
 
     /**
-     * Анализ социальных трендов
+     * Анализ социальных трендов - ИСПРАВЛЕНО
      */
     _analyzeSocialTrends() {
         const socialEvents = this.events.filter(e => 
             [EVENT_TYPES.CONNECTION_FORMED, EVENT_TYPES.CONNECTION_BROKEN, 
+             EVENT_TYPES.CONNECTION_STRENGTHENED, EVENT_TYPES.CONNECTION_WEAKENED,
              EVENT_TYPES.POLARIZATION_EVENT].includes(e.type)
         );
+        
+        // Если нет социальных событий, возвращаем базовые значения
+        if (socialEvents.length === 0) {
+            return {
+                cohesion: 0.75, // 75% сплоченности по умолчанию
+                polarization: 0.15, // 15% поляризации
+                networkGrowth: 5 // умеренный рост сети
+            };
+        }
         
         const recentEvents = socialEvents.slice(-30);
         const formedConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_FORMED);
         const brokenConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_BROKEN);
+        const strengthenedConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_STRENGTHENED);
+        const weakenedConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_WEAKENED);
         const polarizationEvents = recentEvents.filter(e => e.type === EVENT_TYPES.POLARIZATION_EVENT);
         
+        // Расчет сплоченности: соотношение позитивных и негативных социальных событий
+        const positiveEvents = formedConnections.length + strengthenedConnections.length;
+        const negativeEvents = brokenConnections.length + weakenedConnections.length;
+        
+        let cohesion;
+        if (positiveEvents === 0 && negativeEvents === 0) {
+            cohesion = 0.5; // нейтральная сплоченность при отсутствии событий
+        } else {
+            cohesion = Math.max(0, Math.min(1, positiveEvents / Math.max(1, positiveEvents + negativeEvents)));
+        }
+        
+        // Расчет поляризации: доля поляризационных событий от общего числа
+        const totalRecentEvents = Math.max(1, recentEvents.length);
+        const polarization = Math.min(1, polarizationEvents.length / totalRecentEvents);
+        
+        // Рост сети: разность между образованными и разорванными связями
+        const networkGrowth = formedConnections.length - brokenConnections.length;
+        
         return {
-            cohesion: formedConnections.length / Math.max(1, brokenConnections.length),
-            polarization: polarizationEvents.length / Math.max(1, recentEvents.length),
-            networkGrowth: formedConnections.length - brokenConnections.length
+            cohesion,
+            polarization,
+            networkGrowth
         };
     }
 
     /**
-     * Анализ конфликтных трендов
+     * Анализ конфликтных трендов - ИСПРАВЛЕНО
      */
     _analyzeConflictTrends() {
         const conflictEvents = this.events.filter(e => 
-            [EVENT_TYPES.CONFLICT_INITIATED, EVENT_TYPES.RESOURCE_THEFT].includes(e.type)
+            [EVENT_TYPES.CONFLICT_INITIATED, EVENT_TYPES.CONFLICT_RESOLVED,
+             EVENT_TYPES.RESOURCE_THEFT, EVENT_TYPES.TERRITORY_DISPUTE].includes(e.type)
         );
         
-        const recentConflicts = conflictEvents.slice(-10);
-        const totalTheft = recentConflicts
-            .filter(e => e.type === EVENT_TYPES.RESOURCE_THEFT)
-            .reduce((sum, e) => sum + (e.data.amount || 0), 0);
+        // Если нет конфликтных событий, возвращаем мирные показатели
+        if (conflictEvents.length === 0) {
+            return {
+                frequency: 0,
+                intensity: 0.0,
+                trend: 'stable'
+            };
+        }
+        
+        const recentConflicts = conflictEvents.slice(-15);
+        const initiatedConflicts = recentConflicts.filter(e => e.type === EVENT_TYPES.CONFLICT_INITIATED);
+        const resolvedConflicts = recentConflicts.filter(e => e.type === EVENT_TYPES.CONFLICT_RESOLVED);
+        const theftEvents = recentConflicts.filter(e => e.type === EVENT_TYPES.RESOURCE_THEFT);
+        
+        // Частота конфликтов
+        const frequency = recentConflicts.length;
+        
+        // Интенсивность: средний ущерб от краж и конфликтов
+        const totalTheft = theftEvents.reduce((sum, e) => sum + (e.data.amount || 0), 0);
+        const averageTheft = theftEvents.length > 0 ? totalTheft / theftEvents.length : 0;
+        const intensity = Math.min(100, averageTheft); // ограничиваем максимальной интенсивностью
+        
+        // Тренд: сравниваем первую и вторую половину недавних событий
+        const halfPoint = Math.floor(recentConflicts.length / 2);
+        const firstHalf = recentConflicts.slice(0, halfPoint);
+        const secondHalf = recentConflicts.slice(halfPoint);
+        
+        let trend = 'stable';
+        if (secondHalf.length > firstHalf.length * 1.2) {
+            trend = 'escalating';
+        } else if (secondHalf.length < firstHalf.length * 0.8) {
+            trend = 'de-escalating';
+        }
+        
+        // Если есть много разрешенных конфликтов, тренд улучшается
+        if (resolvedConflicts.length > initiatedConflicts.length) {
+            trend = 'de-escalating';
+        }
         
         return {
-            frequency: recentConflicts.length,
-            intensity: totalTheft / Math.max(1, recentConflicts.length),
-            trend: recentConflicts.length > 5 ? 'escalating' : 'stable'
+            frequency,
+            intensity,
+            trend
         };
     }
 
     /**
-     * Анализ динамики популяции
+     * Анализ динамики популяции - ИСПРАВЛЕНО
      */
     _analyzePopulationTrends() {
         const birthEvents = this.events.filter(e => e.type === EVENT_TYPES.AGENT_BIRTH);
         const deathEvents = this.events.filter(e => e.type === EVENT_TYPES.AGENT_DEATH);
         
+        // Если нет демографических событий, возвращаем стабильные показатели
+        if (birthEvents.length === 0 && deathEvents.length === 0) {
+            return {
+                birthRate: 2, // умеренная рождаемость
+                deathRate: 1, // низкая смертность
+                netGrowth: 1, // положительный рост
+                mortalityCauses: {}
+            };
+        }
+        
         const recentBirths = birthEvents.slice(-20);
         const recentDeaths = deathEvents.slice(-20);
         
+        // Показатели рождаемости и смертности
+        const birthRate = recentBirths.length;
+        const deathRate = recentDeaths.length;
+        const netGrowth = birthRate - deathRate;
+        
         return {
-            birthRate: recentBirths.length,
-            deathRate: recentDeaths.length,
-            netGrowth: recentBirths.length - recentDeaths.length,
+            birthRate,
+            deathRate,
+            netGrowth,
             mortalityCauses: this._analyzeMortalityCauses(recentDeaths)
         };
     }
@@ -485,17 +589,6 @@ export class EventLogger {
         if (type.includes('clan')) return 'Clan';
         if (type.includes('conflict')) return 'Conflict';
         return 'System';
-    }
-
-    /**
-     * Начало нового цикла симуляции
-     */
-    startCycle(cycle) {
-        this.logEvent(
-            EVENT_TYPES.CYCLE_COMPLETED,
-            { cycle },
-            EVENT_SEVERITY.INFO
-        );
     }
 
     /**
