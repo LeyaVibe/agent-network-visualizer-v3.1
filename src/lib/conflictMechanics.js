@@ -199,9 +199,6 @@ export class ConflictMechanics {
     clearHistory() {
         this.conflictHistory = [];
     }
-}
-
-export default ConflictMechanics;
 
     /**
      * Обработка конфликтов между кланами
@@ -251,3 +248,6 @@ export default ConflictMechanics;
 
         return conflicts;
     }
+}
+
+export default ConflictMechanics;
