@@ -7,6 +7,7 @@ import { runSimulation, cosineSimilarity } from './agentSimulation.js';
 import { EconomicEngine } from './economicEngine.js';
 import { ClanSystem } from './clanSystem.js';
 import { ConflictMechanics } from './conflictMechanics.js';
+import { safeClanStats } from './clanStatsHelper.js';
 
 /**
  * Запуск расширенной симуляции с экономикой
@@ -195,7 +196,7 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
 
     return {
         economic: economicResult,
-        clans: clanSystem.getClanStats(),
+        clans: safeClanStats(clanSystem),
         conflicts: conflicts
     };
 }
