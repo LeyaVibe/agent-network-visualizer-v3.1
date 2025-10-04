@@ -5,6 +5,7 @@
 
 import { runSimulation, cosineSimilarity } from './agentSimulation.js';
 import { EconomicEngine } from './economicEngine.js';
+import { EnhancedEconomicEngine } from './enhancedEconomicEngine.js';
 import { ClanSystem } from './clanSystem.js';
 import { ConflictMechanics } from './conflictMechanics.js';
 import { safeClanStats } from './clanStatsHelper.js';
@@ -36,15 +37,15 @@ export function runEnhancedSimulation(params) {
 
     // Используем только базовые системы без логирования событий
     
-    // Инициализация базовых систем (отключаем расширенные до полного исправления)
+    // Инициализация расширенных систем с eventLogger
     let economicEngine;
     try {
-        // Временно используем только базовые системы
-        economicEngine = new EconomicEngine(economicParams);
-        console.log('Using basic EconomicEngine');
+        // Используем расширенный движок с eventLogger
+        economicEngine = new EnhancedEconomicEngine(economicParams, eventLogger);
+        console.log('Using EnhancedEconomicEngine with eventLogger');
     } catch (error) {
-        console.error('Failed to initialize economic engine:', error);
-        economicEngine = new EconomicEngine({});
+        console.error('Failed to initialize enhanced economic engine, falling back to basic:', error);
+        economicEngine = new EconomicEngine(economicParams);
     }
     
     let clanSystem;
@@ -94,7 +95,7 @@ export function runEnhancedSimulation(params) {
 
         if (isSocialCycle) {
             // Социальный цикл - обычное взаимодействие агентов
-            executeSocialCycle(agents, topics, connections, threshold);
+            executeSocialCycle(agents, topics, connections, threshold, eventLogger);
         } else {
             // Экономический цикл с расширенной функциональностью
             const economicResult = executeEconomicCycle(
@@ -154,7 +155,7 @@ export function runEnhancedSimulation(params) {
 /**
  * Выполнение социального цикла (обычное взаимодействие)
  */
-function executeSocialCycle(agents, topics, connections, threshold) {
+function executeSocialCycle(agents, topics, connections, threshold, eventLogger = null) {
     // Получаем индексы живых агентов для эффективного выбора
     const aliveIndices = agents
         .map((agent, idx) => ({ agent, idx }))
@@ -198,12 +199,71 @@ function executeSocialCycle(agents, topics, connections, threshold) {
             const opinionDifference = Math.abs(opinion1 - opinion2);
 
             // Корректируем связь
+            const oldConnection = currentConnection;
             if (opinionDifference < threshold) {
                 const strengthIncrease = 0.15 + Math.random() * 0.1;
                 connections[i][j] = connections[j][i] = Math.min(1, currentConnection + strengthIncrease);
+                
+                // Логируем событие усиления связи
+                if (eventLogger && oldConnection < connections[i][j]) {
+                    if (oldConnection === 0) {
+                        // Новая связь
+                        eventLogger.logEvent('connection_formed', {
+                            agent1: i,
+                            agent2: j,
+                            strength: connections[i][j],
+                            topic: topic.name,
+                            opinionDifference
+                        });
+                    } else {
+                        // Усиление существующей связи
+                        eventLogger.logEvent('connection_strengthened', {
+                            agent1: i,
+                            agent2: j,
+                            oldStrength: oldConnection,
+                            newStrength: connections[i][j],
+                            topic: topic.name,
+                            opinionDifference
+                        });
+                    }
+                }
             } else {
                 const strengthDecrease = 0.08 + Math.random() * 0.05;
                 connections[i][j] = connections[j][i] = Math.max(0, currentConnection - strengthDecrease);
+                
+                // Логируем событие ослабления связи
+                if (eventLogger && oldConnection > connections[i][j]) {
+                    if (connections[i][j] === 0) {
+                        // Связь разорвана
+                        eventLogger.logEvent('connection_broken', {
+                            agent1: i,
+                            agent2: j,
+                            oldStrength: oldConnection,
+                            topic: topic.name,
+                            opinionDifference
+                        });
+                    } else {
+                        // Ослабление связи
+                        eventLogger.logEvent('connection_weakened', {
+                            agent1: i,
+                            agent2: j,
+                            oldStrength: oldConnection,
+                            newStrength: connections[i][j],
+                            topic: topic.name,
+                            opinionDifference
+                        });
+                    }
+                }
+                
+                // Логируем поляризацию при большой разнице мнений
+                if (eventLogger && opinionDifference > 0.7) {
+                    eventLogger.logEvent('polarization_event', {
+                        agent1: i,
+                        agent2: j,
+                        opinionDifference,
+                        topic: topic.name
+                    });
+                }
             }
         }
     }

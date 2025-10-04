@@ -290,16 +290,6 @@ export class EventLogger {
              EVENT_TYPES.ECONOMIC_CRISIS, EVENT_TYPES.STARVATION_WARNING].includes(e.type)
         );
         
-        // Если нет экономических событий, возвращаем базовые значения
-        if (economicEvents.length === 0) {
-            return {
-                trend: 'stable',
-                stability: 0.85, // 85% стабильности по умолчанию
-                recentCrises: 0,
-                recentBooms: 0
-            };
-        }
-        
         const recentEvents = economicEvents.slice(-20);
         const crisisEvents = recentEvents.filter(e => e.type === EVENT_TYPES.ECONOMIC_CRISIS);
         const boomEvents = recentEvents.filter(e => e.type === EVENT_TYPES.ECONOMIC_BOOM);
@@ -313,10 +303,21 @@ export class EventLogger {
             trend = 'negative';
         }
         
-        // Расчет стабильности: чем меньше кризисов и голода, тем выше стабильность
+        // Расчет стабильности: базовое значение 85%, снижается при кризисах
         const negativeEvents = crisisEvents.length + starvationEvents.length;
-        const totalRecentEvents = Math.max(1, recentEvents.length);
-        const stability = Math.max(0.1, Math.min(1.0, 1 - (negativeEvents / totalRecentEvents)));
+        let stability = 0.85; // Базовая стабильность 85%
+        
+        if (negativeEvents > 0) {
+            // Снижаем стабильность на 10% за каждый кризис/голод
+            const stabilityPenalty = Math.min(0.7, negativeEvents * 0.1);
+            stability = Math.max(0.15, stability - stabilityPenalty);
+        }
+        
+        // Увеличиваем стабильность при экономических бумах
+        if (boomEvents.length > 0) {
+            const stabilityBonus = Math.min(0.1, boomEvents.length * 0.05);
+            stability = Math.min(0.95, stability + stabilityBonus);
+        }
         
         return {
             trend,
@@ -336,15 +337,6 @@ export class EventLogger {
              EVENT_TYPES.POLARIZATION_EVENT].includes(e.type)
         );
         
-        // Если нет социальных событий, возвращаем базовые значения
-        if (socialEvents.length === 0) {
-            return {
-                cohesion: 0.75, // 75% сплоченности по умолчанию
-                polarization: 0.15, // 15% поляризации
-                networkGrowth: 5 // умеренный рост сети
-            };
-        }
-        
         const recentEvents = socialEvents.slice(-30);
         const formedConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_FORMED);
         const brokenConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_BROKEN);
@@ -352,23 +344,34 @@ export class EventLogger {
         const weakenedConnections = recentEvents.filter(e => e.type === EVENT_TYPES.CONNECTION_WEAKENED);
         const polarizationEvents = recentEvents.filter(e => e.type === EVENT_TYPES.POLARIZATION_EVENT);
         
-        // Расчет сплоченности: соотношение позитивных и негативных социальных событий
+        // Расчет сплоченности: базовое значение 75%, корректируется событиями
+        let cohesion = 0.75; // Базовая сплоченность 75%
+        
         const positiveEvents = formedConnections.length + strengthenedConnections.length;
         const negativeEvents = brokenConnections.length + weakenedConnections.length;
         
-        let cohesion;
-        if (positiveEvents === 0 && negativeEvents === 0) {
-            cohesion = 0.5; // нейтральная сплоченность при отсутствии событий
-        } else {
-            cohesion = Math.max(0, Math.min(1, positiveEvents / Math.max(1, positiveEvents + negativeEvents)));
+        if (positiveEvents > 0 || negativeEvents > 0) {
+            // Корректируем сплоченность на основе соотношения событий
+            const totalSocialEvents = positiveEvents + negativeEvents;
+            const positiveRatio = positiveEvents / totalSocialEvents;
+            
+            // Сдвигаем базовую сплоченность в зависимости от соотношения
+            const adjustment = (positiveRatio - 0.5) * 0.3; // максимальный сдвиг ±15%
+            cohesion = Math.max(0.1, Math.min(0.95, cohesion + adjustment));
         }
         
-        // Расчет поляризации: доля поляризационных событий от общего числа
-        const totalRecentEvents = Math.max(1, recentEvents.length);
-        const polarization = Math.min(1, polarizationEvents.length / totalRecentEvents);
+        // Расчет поляризации: базовое значение 15%, увеличивается при поляризационных событиях
+        let polarization = 0.15; // Базовая поляризация 15%
         
-        // Рост сети: разность между образованными и разорванными связями
-        const networkGrowth = formedConnections.length - brokenConnections.length;
+        if (polarizationEvents.length > 0 && recentEvents.length > 0) {
+            const polarizationRatio = polarizationEvents.length / recentEvents.length;
+            polarization = Math.min(0.8, 0.15 + polarizationRatio * 0.4);
+        }
+        
+        // Рост сети: базовое значение 5, корректируется разностью связей
+        let networkGrowth = 5; // Базовый рост сети
+        const connectionDifference = formedConnections.length - brokenConnections.length;
+        networkGrowth = Math.max(-10, Math.min(20, networkGrowth + connectionDifference));
         
         return {
             cohesion,
