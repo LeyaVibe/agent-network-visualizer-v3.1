@@ -38,25 +38,25 @@ export function runEnhancedSimulation(params) {
     // Инициализация системы логирования событий
     const eventLogger = new EventLogger();
     
-    // Инициализация экономических систем с fallback
+    // Инициализация базовых систем (отключаем расширенные до полного исправления)
     let economicEngine;
     try {
-        economicEngine = economicParams.useEnhanced !== false 
-            ? new EnhancedEconomicEngine(economicParams, eventLogger)
-            : new EconomicEngine(economicParams);
-    } catch (error) {
-        console.warn('Failed to initialize enhanced economic engine, using basic:', error);
+        // Временно используем только базовые системы
         economicEngine = new EconomicEngine(economicParams);
+        console.log('Using basic EconomicEngine');
+    } catch (error) {
+        console.error('Failed to initialize economic engine:', error);
+        economicEngine = new EconomicEngine({});
     }
     
     let clanSystem;
     try {
-        clanSystem = clanParams.useEnhanced !== false
-            ? new EnhancedClanSystem(clanParams, eventLogger)
-            : new ClanSystem(clanParams);
-    } catch (error) {
-        console.warn('Failed to initialize enhanced clan system, using basic:', error);
+        // Временно используем только базовую систему кланов
         clanSystem = new ClanSystem(clanParams);
+        console.log('Using basic ClanSystem');
+    } catch (error) {
+        console.error('Failed to initialize clan system:', error);
+        clanSystem = new ClanSystem({});
     }
     
     const conflictMechanics = new ConflictMechanics(conflictParams);
