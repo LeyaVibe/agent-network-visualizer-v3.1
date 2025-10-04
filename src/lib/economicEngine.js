@@ -6,12 +6,17 @@
 export class EconomicEngine {
     constructor(params = {}) {
         // Базовые параметры производства
-        // Настроены для баланса: изолированные агенты медленно умирают, социальные процветают
         this.baseProductivity = params.baseProductivity || 10;
         this.minSurvival = params.minSurvival || 10;
         this.maxMultiplier = params.maxMultiplier || 2.0;
         this.strongConnectionThreshold = params.strongConnectionThreshold || 0.3;
         this.connectionBonus = params.connectionBonus || 0.1;
+        
+        // Параметры сложности (новые)
+        this.minEfficiency = params.minEfficiency !== undefined ? params.minEfficiency : 0.8;
+        this.accumulationRate = params.accumulationRate !== undefined ? params.accumulationRate : 0.1;
+        this.starvationThreshold = params.starvationThreshold !== undefined ? params.starvationThreshold : 3;
+        this.interClanDistribution = params.interClanDistribution !== false;
     }
 
     /**
@@ -68,9 +73,10 @@ export class EconomicEngine {
         const cappedSocialMultiplier = Math.min(socialMultiplier, this.maxMultiplier);
 
         // Фактор эффективности на основе текущих ресурсов
-        // Улучшенная формула: диапазон 0.8-1.0 вместо 0.5-1.0 для предотвращения "спирали смерти"
+        // Диапазон от minEfficiency до 1.0
         const optimalResources = this.baseProductivity * 5; // Оптимальный уровень ресурсов
-        const efficiencyFactor = 0.8 + 0.2 * Math.min(
+        const efficiencyRange = 1.0 - this.minEfficiency;
+        const efficiencyFactor = this.minEfficiency + efficiencyRange * Math.min(
             1.0, 
             agent.economics.currentResources / optimalResources
         );
@@ -142,8 +148,8 @@ export class EconomicEngine {
                     agent.economics.currentResources = 0;
                     agent.economics.accumulatedResources = 0;
                     
-                    // Агент умирает только после 3 циклов голодания
-                    if (agent.economics.starvationCounter >= 3) {
+                    // Агент умирает после достижения порога голодания
+                    if (agent.economics.starvationCounter >= this.starvationThreshold) {
                         agent.economics.alive = false;
                         results.died++;
                     } else {
@@ -183,7 +189,7 @@ export class EconomicEngine {
                 const survivalThreshold = this.minSurvival * 2; // Буферный запас
                 if (agent.economics.currentResources > survivalThreshold) {
                     const surplus = agent.economics.currentResources - survivalThreshold;
-                    agent.economics.accumulatedResources += surplus * 0.1; // 10% излишков накапливается
+                    agent.economics.accumulatedResources += surplus * this.accumulationRate;
                 }
             }
         });

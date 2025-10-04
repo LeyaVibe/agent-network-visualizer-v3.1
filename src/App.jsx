@@ -13,6 +13,7 @@ import AIAnalysisManager from './components/AIAnalysisManager';
 import ResultsTabs from './components/ResultsTabs';
 import EconomicPanel from './components/EconomicPanel';
 import ClanPanel from './components/ClanPanel';
+import StatisticsPanel from './components/StatisticsPanel';
 import { runEnhancedSimulation, getEnhancedSimulationStats } from './lib/enhancedSimulation';
 import Papa from 'papaparse';
 
@@ -100,6 +101,10 @@ function App() {
   const [economicStats, setEconomicStats] = useState(null);
   const [clanStats, setClanStats] = useState(null);
   const [conflictStats, setConflictStats] = useState(null);
+  
+  // Логирование событий
+  const [eventLogger, setEventLogger] = useState(null);
+  const [currentCycle, setCurrentCycle] = useState(0);
 
   // Инициализация настроек тем при изменении количества
   useEffect(() => {
@@ -295,6 +300,12 @@ function App() {
         });
       });
 
+      // Инициализация логгера событий
+      const { EventLogger } = await import('./lib/eventLogger');
+      const logger = new EventLogger();
+      setEventLogger(logger);
+      setCurrentCycle(0);
+
       // Запуск симуляции (с экономикой или без)
       const simulationResult = economicParams.enabled 
         ? runEnhancedSimulation({
@@ -308,7 +319,9 @@ function App() {
             conflictParams: {
               polarizationFactor: clanParams.polarizationFactor,
               resourceStealRatio: clanParams.resourceStealRatio
-            }
+            },
+            eventLogger: logger,
+            onCycleComplete: (cycle) => setCurrentCycle(cycle)
           })
         : runSimulation(
             agentData.agents,
@@ -516,6 +529,14 @@ function App() {
               className="text-xs px-2 py-1"
             >
               Кланы
+            </Button>
+            <Button
+              onClick={() => setActiveSection('statistics')}
+              variant={activeSection === 'statistics' ? 'primary' : 'outline'}
+              disabled={!simulationData}
+              className="text-xs px-2 py-1"
+            >
+              Статистика
             </Button>
             <Button
               onClick={() => setActiveSection('results')}
@@ -776,6 +797,14 @@ function App() {
             onParamsChange={setClanParams}
             clanStats={clanStats}
             conflictStats={conflictStats}
+          />
+        )}
+
+        {/* Секция статистики */}
+        {activeSection === 'statistics' && eventLogger && (
+          <StatisticsPanel
+            eventLogger={eventLogger}
+            currentCycle={currentCycle}
           />
         )}
 

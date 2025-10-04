@@ -43,6 +43,139 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                         <>
                             <Separator />
 
+                            {/* Уровень сложности */}
+                            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-base font-semibold">⚙️ Настройки сложности</Label>
+                                    <Info className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                
+                                {/* Диапазон эффективности */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Минимальная эффективность</Label>
+                                        <span className="text-sm font-medium">{((params.minEfficiency || 0.8) * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <Slider
+                                        value={[(params.minEfficiency || 0.8) * 100]}
+                                        onValueChange={([value]) => handleChange('minEfficiency', value / 100)}
+                                        min={30}
+                                        max={90}
+                                        step={5}
+                                        className="w-full"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Эффективность агента при 0 ресурсах. Ниже = сложнее выжить
+                                    </p>
+                                </div>
+
+                                {/* Скорость накопления */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Скорость накопления</Label>
+                                        <span className="text-sm font-medium">{((params.accumulationRate || 0.1) * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <Slider
+                                        value={[(params.accumulationRate || 0.1) * 100]}
+                                        onValueChange={([value]) => handleChange('accumulationRate', value / 100)}
+                                        min={1}
+                                        max={15}
+                                        step={1}
+                                        className="w-full"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Процент излишков, идущих в накопления. Ниже = меньше подушка безопасности
+                                    </p>
+                                </div>
+
+                                {/* Порог голодания */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Порог голодания</Label>
+                                        <span className="text-sm font-medium">{params.starvationThreshold || 3} цикла</span>
+                                    </div>
+                                    <Slider
+                                        value={[params.starvationThreshold || 3]}
+                                        onValueChange={([value]) => handleChange('starvationThreshold', value)}
+                                        min={1}
+                                        max={5}
+                                        step={1}
+                                        className="w-full"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Циклов голодания до смерти. Меньше = сложнее выжить
+                                    </p>
+                                </div>
+
+                                {/* Межклановое распределение */}
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="inter-clan-enabled">Межклановое распределение</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Кланы делятся излишками между собой
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="inter-clan-enabled"
+                                        checked={params.interClanDistribution !== false}
+                                        onCheckedChange={(checked) => handleChange('interClanDistribution', checked)}
+                                    />
+                                </div>
+
+                                {/* Пресеты сложности */}
+                                <div className="space-y-2 pt-2 border-t">
+                                    <Label className="text-sm">Быстрые пресеты:</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => {
+                                                handleChange('minEfficiency', 0.8);
+                                                handleChange('accumulationRate', 0.1);
+                                                handleChange('starvationThreshold', 3);
+                                                handleChange('interClanDistribution', true);
+                                            }}
+                                            className="px-3 py-2 text-xs bg-green-500/20 hover:bg-green-500/30 rounded border border-green-500/50 transition-colors"
+                                        >
+                                            🟢 Лёгкий
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleChange('minEfficiency', 0.6);
+                                                handleChange('accumulationRate', 0.07);
+                                                handleChange('starvationThreshold', 2);
+                                                handleChange('interClanDistribution', true);
+                                            }}
+                                            className="px-3 py-2 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 rounded border border-yellow-500/50 transition-colors"
+                                        >
+                                            🟡 Средний
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleChange('minEfficiency', 0.5);
+                                                handleChange('accumulationRate', 0.05);
+                                                handleChange('starvationThreshold', 2);
+                                                handleChange('interClanDistribution', false);
+                                            }}
+                                            className="px-3 py-2 text-xs bg-orange-500/20 hover:bg-orange-500/30 rounded border border-orange-500/50 transition-colors"
+                                        >
+                                            🟠 Сложный
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleChange('minEfficiency', 0.3);
+                                                handleChange('accumulationRate', 0.03);
+                                                handleChange('starvationThreshold', 1);
+                                                handleChange('interClanDistribution', false);
+                                            }}
+                                            className="px-3 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 rounded border border-red-500/50 transition-colors"
+                                        >
+                                            🔴 Экстремальный
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator />
+
                             {/* Базовая продуктивность */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">

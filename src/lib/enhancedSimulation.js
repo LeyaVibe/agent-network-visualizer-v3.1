@@ -21,7 +21,9 @@ export function runEnhancedSimulation(params) {
         economicEnabled = false,
         economicParams = {},
         clanParams = {},
-        conflictParams = {}
+        conflictParams = {},
+        eventLogger = null,
+        onCycleComplete = null
     } = params;
 
     // Если экономика отключена, используем стандартную симуляцию
@@ -80,6 +82,14 @@ export function runEnhancedSimulation(params) {
 
     // Основной цикл симуляции
     for (let cycle = 0; cycle < cycles; cycle++) {
+        // Уведомление о начале цикла
+        if (eventLogger) {
+            eventLogger.startCycle(cycle);
+        }
+        if (onCycleComplete) {
+            onCycleComplete(cycle);
+        }
+
         const isSocialCycle = cycle % economicCycleInterval !== 0;
 
         if (isSocialCycle) {
@@ -93,7 +103,8 @@ export function runEnhancedSimulation(params) {
                 economicEngine,
                 clanSystem,
                 conflictMechanics,
-                cycle
+                cycle,
+                eventLogger
             );
 
             // Сохранение статистики
@@ -120,6 +131,14 @@ export function runEnhancedSimulation(params) {
                 alive: agents.filter(a => a.economics && a.economics.alive).length,
                 dead: agents.filter(a => a.economics && !a.economics.alive).length
             });
+
+            // Логирование экономической статистики
+            if (eventLogger) {
+                eventLogger.logCycleEconomics({
+                    cycle,
+                    ...economicResult.economic
+                });
+            }
 
             console.log(`Цикл ${cycle}: ${economicResult.economic.survived} выжило, ${economicResult.economic.died} умерло`);
         }
@@ -193,7 +212,7 @@ function executeSocialCycle(agents, topics, connections, threshold) {
 /**
  * Выполнение расширенного экономического цикла
  */
-function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics, cycle = 0) {
+function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics, cycle = 0, eventLogger = null) {
     // Фаза 1: Производство и потребление с расширенной экономикой
     const economicResult = economicEngine.executeEconomicCycle(agents, connections, cycle);
 
