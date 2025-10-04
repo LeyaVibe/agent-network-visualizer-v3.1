@@ -5,9 +5,12 @@
 
 import { runSimulation, cosineSimilarity } from './agentSimulation.js';
 import { EconomicEngine } from './economicEngine.js';
+import { EnhancedEconomicEngine } from './enhancedEconomicEngine.js';
 import { ClanSystem } from './clanSystem.js';
+import { EnhancedClanSystem } from './enhancedClanSystem.js';
 import { ConflictMechanics } from './conflictMechanics.js';
 import { safeClanStats } from './clanStatsHelper.js';
+import { EventLogger } from './eventLogger.js';
 
 /**
  * Запуск расширенной симуляции с экономикой
@@ -32,9 +35,18 @@ export function runEnhancedSimulation(params) {
     // Получаем интервал экономических циклов из параметров
     const economicCycleInterval = economicParams.economicCycleInterval || 5;
 
-    // Инициализация экономических систем
-    const economicEngine = new EconomicEngine(economicParams);
-    const clanSystem = new ClanSystem(clanParams);
+    // Инициализация системы логирования событий
+    const eventLogger = new EventLogger();
+    
+    // Инициализация расширенных экономических систем
+    const economicEngine = economicParams.useEnhanced !== false 
+        ? new EnhancedEconomicEngine(economicParams, eventLogger)
+        : new EconomicEngine(economicParams);
+    
+    const clanSystem = clanParams.useEnhanced !== false
+        ? new EnhancedClanSystem(clanParams, eventLogger)
+        : new ClanSystem(clanParams);
+    
     const conflictMechanics = new ConflictMechanics(conflictParams);
 
     // Инициализация экономики агентов
@@ -66,13 +78,15 @@ export function runEnhancedSimulation(params) {
             // Социальный цикл - обычное взаимодействие агентов
             executeSocialCycle(agents, topics, connections, threshold);
         } else {
-            // Экономический цикл
+            // Экономический цикл с расширенной функциональностью
             const economicResult = executeEconomicCycle(
                 agents,
                 connections,
                 economicEngine,
                 clanSystem,
-                conflictMechanics
+                conflictMechanics,
+                cycle,
+                eventLogger
             );
 
             // Сохранение статистики
@@ -169,18 +183,22 @@ function executeSocialCycle(agents, topics, connections, threshold) {
 }
 
 /**
- * Выполнение экономического цикла
+ * Выполнение расширенного экономического цикла
  */
-function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics) {
-    // Фаза 1: Производство и потребление
-    const economicResult = economicEngine.executeEconomicCycle(agents, connections);
+function executeEconomicCycle(agents, connections, economicEngine, clanSystem, conflictMechanics, cycle = 0, eventLogger = null) {
+    // Фаза 1: Производство и потребление с расширенной экономикой
+    const economicResult = economicEngine.executeEconomicCycle(agents, connections, cycle);
 
-    // Фаза 2: Идентификация кланов
-    const clans = clanSystem.identifyClans(agents, connections);
+    // Фаза 2: Формирование и управление кланами с расширенной системой
+    const clans = clanSystem.formClans ? 
+        clanSystem.formClans(agents, connections, cycle) : 
+        clanSystem.identifyClans(agents, connections);
 
-    // Фаза 3: Принятие решений кланами
+    // Фаза 3: Принятие решений кланами (расширенная логика)
     clans.forEach(clan => {
-        clanSystem.makeClanDecision(clan);
+        if (clanSystem.makeClanDecision) {
+            clanSystem.makeClanDecision(clan);
+        }
     });
 
     // Фаза 4: Обработка конфликтов
@@ -189,15 +207,26 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
     // Фаза 5: Распределение ресурсов внутри кланов
     clans.forEach(clan => {
         // Пропускаем кланы с "беспределом" - они уже атаковали
-        if (clan.decision.rule !== 'lawlessness') {
+        if (clan.decision && clan.decision.rule !== 'lawlessness') {
             clanSystem.distributeResources(clan, connections, agents);
         }
     });
 
+    // Получение расширенной статистики
+    const clanStats = clanSystem.getEnhancedClanStats ? 
+        clanSystem.getEnhancedClanStats(clans) : 
+        safeClanStats(clanSystem);
+
+    const economicStats = economicEngine.getEnhancedEconomicStats ? 
+        economicEngine.getEnhancedEconomicStats(agents) : 
+        economicEngine.getEconomicStats(agents);
+
     return {
         economic: economicResult,
-        clans: safeClanStats(clanSystem),
-        conflicts: conflicts
+        economicStats: economicStats,
+        clans: clanStats,
+        conflicts: conflicts,
+        events: eventLogger ? eventLogger.getRecentEvents(10) : []
     };
 }
 
@@ -242,15 +271,127 @@ function selectTopicForCommunication(agent1, agent2, topics) {
 }
 
 /**
- * Получение детальной статистики по экономической симуляции
+ * Получение детальной статистики по расширенной экономической симуляции
  */
-export function getEnhancedSimulationStats(agents, economicHistory) {
-    const economicEngine = new EconomicEngine();
-    const currentStats = economicEngine.getEconomicStats(agents);
+export function getEnhancedSimulationStats(agents, economicHistory, clanHistory, eventHistory) {
+    const eventLogger = new EventLogger();
+    const economicEngine = new EnhancedEconomicEngine({}, eventLogger);
+    const clanSystem = new EnhancedClanSystem({}, eventLogger);
+    
+    // Инициализация для получения статистики
+    economicEngine.initializeAgentEconomics(agents);
+    
+    const currentEconomicStats = economicEngine.getEnhancedEconomicStats ? 
+        economicEngine.getEnhancedEconomicStats(agents) : 
+        economicEngine.getEconomicStats(agents);
+    
+    const currentClanStats = clanSystem.getEnhancedClanStats ? 
+        clanSystem.getEnhancedClanStats(new Map()) : 
+        clanSystem.getClanStats();
 
     return {
-        current: currentStats,
-        history: economicHistory
+        current: {
+            economic: currentEconomicStats,
+            clans: currentClanStats,
+            events: eventHistory || []
+        },
+        history: {
+            economic: economicHistory || [],
+            clans: clanHistory || [],
+            events: eventHistory || []
+        },
+        analytics: {
+            economicTrends: analyzeEconomicTrends(economicHistory),
+            clanEvolution: analyzeClanEvolution(clanHistory),
+            eventPatterns: analyzeEventPatterns(eventHistory)
+        }
+    };
+}
+
+/**
+ * Анализ экономических трендов
+ */
+function analyzeEconomicTrends(economicHistory) {
+    if (!economicHistory || economicHistory.length < 2) {
+        return { trend: 'insufficient_data', growth: 0, volatility: 0 };
+    }
+
+    const values = economicHistory.map(h => h.averageResources || 0);
+    const growth = (values[values.length - 1] - values[0]) / Math.max(1, values[0]);
+    
+    // Расчет волатильности
+    const changes = [];
+    for (let i = 1; i < values.length; i++) {
+        changes.push((values[i] - values[i-1]) / Math.max(1, values[i-1]));
+    }
+    
+    const avgChange = changes.reduce((a, b) => a + b, 0) / changes.length;
+    const volatility = Math.sqrt(
+        changes.reduce((sum, change) => sum + Math.pow(change - avgChange, 2), 0) / changes.length
+    );
+
+    return {
+        trend: growth > 0.1 ? 'growth' : growth < -0.1 ? 'decline' : 'stable',
+        growth: growth,
+        volatility: volatility,
+        peakValue: Math.max(...values),
+        minValue: Math.min(...values)
+    };
+}
+
+/**
+ * Анализ эволюции кланов
+ */
+function analyzeClanEvolution(clanHistory) {
+    if (!clanHistory || clanHistory.length < 2) {
+        return { evolution: 'insufficient_data', stability: 0 };
+    }
+
+    const clanCounts = clanHistory.map(h => Object.keys(h).length);
+    const avgClanCount = clanCounts.reduce((a, b) => a + b, 0) / clanCounts.length;
+    
+    const countVariance = clanCounts.reduce(
+        (sum, count) => sum + Math.pow(count - avgClanCount, 2), 0
+    ) / clanCounts.length;
+    
+    const stability = 1 / (1 + countVariance); // Нормализованная стабильность
+
+    return {
+        evolution: stability > 0.8 ? 'stable' : stability > 0.5 ? 'dynamic' : 'chaotic',
+        stability: stability,
+        averageClanCount: avgClanCount,
+        maxClans: Math.max(...clanCounts),
+        minClans: Math.min(...clanCounts)
+    };
+}
+
+/**
+ * Анализ паттернов событий
+ */
+function analyzeEventPatterns(eventHistory) {
+    if (!eventHistory || eventHistory.length === 0) {
+        return { patterns: 'no_events', frequency: 0 };
+    }
+
+    const eventTypes = {};
+    eventHistory.forEach(event => {
+        const type = event.type || 'unknown';
+        eventTypes[type] = (eventTypes[type] || 0) + 1;
+    });
+
+    const totalEvents = eventHistory.length;
+    const mostCommonEvent = Object.entries(eventTypes)
+        .sort(([,a], [,b]) => b - a)[0];
+
+    return {
+        patterns: mostCommonEvent ? mostCommonEvent[0] : 'unknown',
+        frequency: totalEvents,
+        eventTypes: eventTypes,
+        mostCommon: mostCommonEvent ? {
+            type: mostCommonEvent[0],
+            count: mostCommonEvent[1],
+            percentage: (mostCommonEvent[1] / totalEvents * 100).toFixed(1)
+        } : null
     };
 }
 
