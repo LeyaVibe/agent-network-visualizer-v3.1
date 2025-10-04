@@ -70,7 +70,7 @@ export class EnhancedClanSystem extends ClanSystem {
      * Расширенное формирование кланов с политическими системами
      */
     formClans(agents, connectionMatrix, cycle = 0) {
-        const baseClans = super.formClans(agents, connectionMatrix);
+        const baseClans = super.identifyClans(agents, connectionMatrix);
         
         // Инициализация расширенных данных для новых кланов
         baseClans.forEach((clan, clanId) => {
