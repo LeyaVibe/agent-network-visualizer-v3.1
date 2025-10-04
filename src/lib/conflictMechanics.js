@@ -202,3 +202,52 @@ export class ConflictMechanics {
 }
 
 export default ConflictMechanics;
+
+    /**
+     * Обработка конфликтов между кланами
+     */
+    processConflicts(clans, connectionMatrix, agents) {
+        const conflicts = [];
+        
+        if (!clans || clans.size === 0) {
+            return conflicts;
+        }
+
+        // Поиск кланов с решением "беспредел"
+        const aggressiveClans = [];
+        clans.forEach((clan, clanId) => {
+            if (clan.decision && clan.decision.rule === 'lawlessness') {
+                aggressiveClans.push(clan);
+            }
+        });
+
+        // Выполнение атак
+        aggressiveClans.forEach(attackerClan => {
+            // Поиск жертвы
+            const potentialVictims = [];
+            clans.forEach((clan, clanId) => {
+                if (clan !== attackerClan) {
+                    potentialVictims.push(clan);
+                }
+            });
+
+            if (potentialVictims.length > 0) {
+                // Выбор случайной жертвы
+                const victimClan = potentialVictims[Math.floor(Math.random() * potentialVictims.length)];
+                
+                // Выполнение конфликта
+                const conflictResult = this.executeConflict(
+                    attackerClan,
+                    victimClan,
+                    connectionMatrix,
+                    agents
+                );
+
+                if (conflictResult) {
+                    conflicts.push(conflictResult);
+                }
+            }
+        });
+
+        return conflicts;
+    }
