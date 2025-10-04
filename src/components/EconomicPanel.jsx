@@ -14,6 +14,13 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
         });
     };
 
+    const applyPreset = (presetParams) => {
+        onParamsChange({
+            ...params,
+            ...presetParams
+        });
+    };
+
     return (
         <div className="space-y-4">
             <Card>
@@ -123,53 +130,73 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                 </div>
 
                                 {/* Пресеты сложности */}
-                                <div className="space-y-2 pt-2 border-t">
+                                <div className="space-y-3 pt-2 border-t">
                                     <Label className="text-sm">Быстрые пресеты:</Label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => {
-                                                handleChange('minEfficiency', 0.8);
-                                                handleChange('accumulationRate', 0.1);
-                                                handleChange('starvationThreshold', 3);
-                                                handleChange('interClanDistribution', true);
-                                            }}
-                                            className="px-3 py-2 text-xs bg-green-500/20 hover:bg-green-500/30 rounded border border-green-500/50 transition-colors"
-                                        >
-                                            🟢 Лёгкий
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleChange('minEfficiency', 0.6);
-                                                handleChange('accumulationRate', 0.07);
-                                                handleChange('starvationThreshold', 2);
-                                                handleChange('interClanDistribution', true);
-                                            }}
-                                            className="px-3 py-2 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 rounded border border-yellow-500/50 transition-colors"
-                                        >
-                                            🟡 Средний
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleChange('minEfficiency', 0.5);
-                                                handleChange('accumulationRate', 0.05);
-                                                handleChange('starvationThreshold', 2);
-                                                handleChange('interClanDistribution', false);
-                                            }}
-                                            className="px-3 py-2 text-xs bg-orange-500/20 hover:bg-orange-500/30 rounded border border-orange-500/50 transition-colors"
-                                        >
-                                            🟠 Сложный
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleChange('minEfficiency', 0.3);
-                                                handleChange('accumulationRate', 0.03);
-                                                handleChange('starvationThreshold', 1);
-                                                handleChange('interClanDistribution', false);
-                                            }}
-                                            className="px-3 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 rounded border border-red-500/50 transition-colors"
-                                        >
-                                            🔴 Экстремальный
-                                        </button>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <button
+                                                onClick={() => applyPreset({
+                                                    minEfficiency: 0.8,
+                                                    accumulationRate: 0.1,
+                                                    starvationThreshold: 3,
+                                                    interClanDistribution: true
+                                                })}
+                                                className="w-full px-3 py-2 text-xs bg-green-500/20 hover:bg-green-500/30 rounded border border-green-500/50 transition-colors font-medium"
+                                            >
+                                                🟢 Лёгкий
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                Высокая эффективность, легко выжить. Для новичков.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <button
+                                                onClick={() => applyPreset({
+                                                    minEfficiency: 0.6,
+                                                    accumulationRate: 0.07,
+                                                    starvationThreshold: 2,
+                                                    interClanDistribution: true
+                                                })}
+                                                className="w-full px-3 py-2 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 rounded border border-yellow-500/50 transition-colors font-medium"
+                                            >
+                                                🟡 Средний
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                Сбалансированная сложность. Рекомендуется.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <button
+                                                onClick={() => applyPreset({
+                                                    minEfficiency: 0.5,
+                                                    accumulationRate: 0.05,
+                                                    starvationThreshold: 2,
+                                                    interClanDistribution: false
+                                                })}
+                                                className="w-full px-3 py-2 text-xs bg-orange-500/20 hover:bg-orange-500/30 rounded border border-orange-500/50 transition-colors font-medium"
+                                            >
+                                                🟠 Сложный
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                Низкая эффективность, нет помощи между кланами.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <button
+                                                onClick={() => applyPreset({
+                                                    minEfficiency: 0.3,
+                                                    accumulationRate: 0.03,
+                                                    starvationThreshold: 1,
+                                                    interClanDistribution: false
+                                                })}
+                                                className="w-full px-3 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 rounded border border-red-500/50 transition-colors font-medium"
+                                            >
+                                                🔴 Экстремальный
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                Очень сложно! Быстрая смерть, минимум ресурсов.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
