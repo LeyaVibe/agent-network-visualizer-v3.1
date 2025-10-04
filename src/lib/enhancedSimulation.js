@@ -201,17 +201,15 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
     // Фаза 1: Производство и потребление с расширенной экономикой
     const economicResult = economicEngine.executeEconomicCycle(agents, connections, cycle);
 
-    // Фаза 2: Формирование и управление кланами с безопасным вызовом
-    let clans;
+    // Фаза 2: Формирование и управление кланами (используем правильный метод)
+    let clans = [];
     try {
-        if (clanSystem.formClans && typeof clanSystem.formClans === 'function') {
-            clans = clanSystem.formClans(agents, connections, cycle);
-        } else if (clanSystem.identifyClans && typeof clanSystem.identifyClans === 'function') {
+        // Базовая система кланов использует identifyClans
+        if (clanSystem.identifyClans && typeof clanSystem.identifyClans === 'function') {
             clans = clanSystem.identifyClans(agents, connections);
+            console.log('Clans identified successfully:', clans.length);
         } else {
-            // Fallback: создаем простые кланы
-            clans = [];
-            console.warn('No clan formation method available, using empty clans');
+            console.warn('identifyClans method not available');
         }
     } catch (error) {
         console.error('Error in clan formation:', error);
