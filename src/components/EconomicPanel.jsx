@@ -66,7 +66,7 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                     <Slider
                                         value={[(params.minEfficiency || 0.8) * 100]}
                                         onValueChange={([value]) => handleChange('minEfficiency', value / 100)}
-                                        min={30}
+                                        min={20}
                                         max={90}
                                         step={5}
                                         className="w-full"
@@ -197,11 +197,54 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                                 🔴 Экстремальный
                                             </button>
                                             <p className="text-[10px] text-muted-foreground leading-tight">
-                                                Очень сложно! Быстрая смерть, минимум ресурсов.
+                                                ⚠️ НЕВОЗМОЖНЫЙ режим! Макс. производство (11.2) &lt; потребление (12). 100% смертность неизбежна.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <button
+                                                onClick={() => applyPreset({
+                                                    minEfficiency: 0.25,
+                                                    accumulationRate: 0.02,
+                                                    starvationThreshold: 1,
+                                                    interClanDistribution: false,
+                                                    baseProductivity: 9,
+                                                    minSurvival: 11,
+                                                    maxMultiplier: 1.5
+                                                })}
+                                                className="w-full px-3 py-2 text-xs bg-purple-500/20 hover:bg-purple-500/30 rounded border border-purple-500/50 transition-colors font-medium"
+                                            >
+                                                🟣 Экстремальный (проходимый)
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                                Очень сложно! Выживут только 30-50% с сильными связями. Макс. производство (13.5) &gt; потребление (11).
                                             </p>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                {/* Баланс выживаемости */}
+                                {params.baseProductivity && params.minSurvival && params.maxMultiplier && (
+                                    <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                        <div className="text-xs font-semibold text-blue-400 mb-2">📊 Баланс выживаемости</div>
+                                        <div className="space-y-1 text-[10px] text-muted-foreground">
+                                            <div>Макс. производство: <span className="font-mono">{(params.baseProductivity * params.maxMultiplier).toFixed(1)}</span></div>
+                                            <div>Потребление: <span className="font-mono">{params.minSurvival}</span></div>
+                                            <div className={`font-semibold ${
+                                                (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
+                                                    ? 'text-green-400' 
+                                                    : 'text-red-400'
+                                            }`}>
+                                                Баланс: <span className="font-mono">
+                                                    {(params.baseProductivity * params.maxMultiplier - params.minSurvival).toFixed(1)}
+                                                </span> {
+                                                    (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
+                                                        ? '✅ Выживание возможно' 
+                                                        : '❌ Все умрут'
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <Separator />
@@ -352,6 +395,30 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                         </p>
                                     </div>
                                 </div>
+                                
+                                {/* Баланс выживаемости */}
+                                {params.baseProductivity && params.minSurvival && params.maxMultiplier && (
+                                    <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                        <div className="text-xs font-semibold text-blue-400 mb-2">📊 Баланс выживаемости</div>
+                                        <div className="space-y-1 text-[10px] text-muted-foreground">
+                                            <div>Макс. производство: <span className="font-mono">{(params.baseProductivity * params.maxMultiplier).toFixed(1)}</span></div>
+                                            <div>Потребление: <span className="font-mono">{params.minSurvival}</span></div>
+                                            <div className={`font-semibold ${
+                                                (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
+                                                    ? 'text-green-400' 
+                                                    : 'text-red-400'
+                                            }`}>
+                                                Баланс: <span className="font-mono">
+                                                    {(params.baseProductivity * params.maxMultiplier - params.minSurvival).toFixed(1)}
+                                                </span> {
+                                                    (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
+                                                        ? '✅ Выживание возможно' 
+                                                        : '❌ Все умрут'
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <Separator />
