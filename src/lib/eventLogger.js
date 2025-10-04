@@ -483,6 +483,63 @@ export class EventLogger {
     }
 
     /**
+     * Начало нового цикла симуляции
+     */
+    startCycle(cycle) {
+        this.logEvent(
+            EVENT_TYPES.CYCLE_COMPLETED,
+            { cycle },
+            EVENT_SEVERITY.INFO
+        );
+    }
+
+    /**
+     * Логирование экономической статистики цикла
+     */
+    logCycleEconomics(data) {
+        const { cycle, survived, died, averageResources, totalProduction } = data;
+        
+        // Логируем общую экономическую статистику
+        this.logEvent(
+            EVENT_TYPES.RESOURCE_PRODUCTION,
+            {
+                cycle,
+                survived,
+                died,
+                averageResources,
+                totalProduction
+            },
+            EVENT_SEVERITY.INFO
+        );
+
+        // Проверяем критические ситуации
+        if (died > survived * 0.1) {
+            this.logEvent(
+                EVENT_TYPES.ECONOMIC_CRISIS,
+                {
+                    cycle,
+                    deathRate: (died / (survived + died)) * 100,
+                    died,
+                    survived
+                },
+                EVENT_SEVERITY.CRITICAL
+            );
+        }
+
+        if (averageResources > 100) {
+            this.logEvent(
+                EVENT_TYPES.ECONOMIC_BOOM,
+                {
+                    cycle,
+                    averageResources,
+                    growthRate: ((averageResources - 50) / 50) * 100
+                },
+                EVENT_SEVERITY.MILESTONE
+            );
+        }
+    }
+
+    /**
      * Очистка логов
      */
     clear() {
