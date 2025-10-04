@@ -194,27 +194,54 @@ function executeEconomicCycle(agents, connections, economicEngine, clanSystem, c
         clanSystem.formClans(agents, connections, cycle) : 
         clanSystem.identifyClans(agents, connections);
 
+    // Преобразование кланов в правильный формат для обработки
+    let clansForProcessing = clans;
+    if (Array.isArray(clans)) {
+        // Если clans - массив, преобразуем в Map
+        clansForProcessing = new Map();
+        clans.forEach((clan, index) => {
+            clansForProcessing.set(clan.id || index, clan);
+        });
+    }
+
     // Фаза 3: Принятие решений кланами (расширенная логика)
-    clans.forEach(clan => {
-        if (clanSystem.makeClanDecision) {
-            clanSystem.makeClanDecision(clan);
-        }
-    });
+    if (clansForProcessing instanceof Map) {
+        clansForProcessing.forEach(clan => {
+            if (clanSystem.makeClanDecision) {
+                clanSystem.makeClanDecision(clan);
+            }
+        });
+    } else if (Array.isArray(clansForProcessing)) {
+        clansForProcessing.forEach(clan => {
+            if (clanSystem.makeClanDecision) {
+                clanSystem.makeClanDecision(clan);
+            }
+        });
+    }
 
     // Фаза 4: Обработка конфликтов
-    const conflicts = conflictMechanics.processConflicts(clans, connections, agents);
+    const conflicts = conflictMechanics.processConflicts(clansForProcessing, connections, agents);
 
     // Фаза 5: Распределение ресурсов внутри кланов
-    clans.forEach(clan => {
-        // Пропускаем кланы с "беспределом" - они уже атаковали
-        if (clan.decision && clan.decision.rule !== 'lawlessness') {
-            clanSystem.distributeResources(clan, connections, agents);
-        }
-    });
+    if (clansForProcessing instanceof Map) {
+        clansForProcessing.forEach(clan => {
+            // Пропускаем кланы с "беспределом" - они уже атаковали
+            if (clan.decision && clan.decision.rule !== 'lawlessness') {
+                clanSystem.distributeResources(clan, connections, agents);
+            }
+        });
+    } else if (Array.isArray(clansForProcessing)) {
+        clansForProcessing.forEach(clan => {
+            // Пропускаем кланы с "беспределом" - они уже атаковали
+            if (clan.decision && clan.decision.rule !== 'lawlessness') {
+                clanSystem.distributeResources(clan, connections, agents);
+            }
+        });
+    }
 
     // Получение расширенной статистики
     const clanStats = clanSystem.getEnhancedClanStats ? 
-        clanSystem.getEnhancedClanStats(clans) : 
+        clanSystem.getEnhancedClanStats(clansForProcessing) : 
         safeClanStats(clanSystem);
 
     const economicStats = economicEngine.getEnhancedEconomicStats ? 

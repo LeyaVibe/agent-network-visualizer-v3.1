@@ -206,14 +206,32 @@ export class ConflictMechanics {
     processConflicts(clans, connectionMatrix, agents) {
         const conflicts = [];
         
-        if (!clans || clans.size === 0) {
+        // Проверка входных данных
+        if (!clans) {
+            return conflicts;
+        }
+
+        // Обработка разных форматов кланов
+        let clansToProcess = [];
+        if (clans instanceof Map) {
+            if (clans.size === 0) {
+                return conflicts;
+            }
+            clansToProcess = Array.from(clans.values());
+        } else if (Array.isArray(clans)) {
+            if (clans.length === 0) {
+                return conflicts;
+            }
+            clansToProcess = clans;
+        } else {
+            console.warn('ConflictMechanics: Unknown clans format', clans);
             return conflicts;
         }
 
         // Поиск кланов с решением "беспредел"
         const aggressiveClans = [];
-        clans.forEach((clan, clanId) => {
-            if (clan.decision && clan.decision.rule === 'lawlessness') {
+        clansToProcess.forEach(clan => {
+            if (clan && clan.decision && clan.decision.rule === 'lawlessness') {
                 aggressiveClans.push(clan);
             }
         });
@@ -222,8 +240,8 @@ export class ConflictMechanics {
         aggressiveClans.forEach(attackerClan => {
             // Поиск жертвы
             const potentialVictims = [];
-            clans.forEach((clan, clanId) => {
-                if (clan !== attackerClan) {
+            clansToProcess.forEach(clan => {
+                if (clan && clan !== attackerClan) {
                     potentialVictims.push(clan);
                 }
             });
