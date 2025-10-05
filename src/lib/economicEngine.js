@@ -80,15 +80,23 @@ export class EconomicEngine {
 
         // Фактор эффективности на основе текущих ресурсов
         // Диапазон от minEfficiency до 1.0
-        const optimalResources = this.baseProductivity * 5; // Оптимальный уровень ресурсов
+        const optimalResources = this.baseProductivity * 3; // Снижен оптимальный уровень
         const efficiencyRange = 1.0 - this.minEfficiency;
         const efficiencyFactor = this.minEfficiency + efficiencyRange * Math.min(
             1.0, 
             agent.economics.currentResources / optimalResources
         );
 
-        // Итоговое производство
-        const production = this.baseProductivity * cappedSocialMultiplier * efficiencyFactor;
+        // Добавляем случайность для создания разнообразия
+        const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
+        
+        // Фактор усталости - снижение производительности при низких ресурсах
+        const fatigueFactor = agent.economics.currentResources < this.minSurvival 
+            ? 0.7 + (agent.economics.currentResources / this.minSurvival) * 0.3
+            : 1.0;
+
+        // Итоговое производство с большей вариативностью
+        const production = this.baseProductivity * cappedSocialMultiplier * efficiencyFactor * randomFactor * fatigueFactor;
 
         // Сохранение в историю
         agent.economics.productionHistory.push(production);
@@ -117,7 +125,10 @@ export class EconomicEngine {
                 agent.economics.starvationCounter = 0;
             }
 
-            const consumption = this.minSurvival;
+            // Базовое потребление с небольшой случайностью
+            const baseConsumption = this.minSurvival;
+            const consumptionVariation = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
+            const consumption = baseConsumption * consumptionVariation;
 
             // Проверка достаточности ресурсов
             if (agent.economics.currentResources >= consumption) {
@@ -154,8 +165,11 @@ export class EconomicEngine {
                     agent.economics.currentResources = 0;
                     agent.economics.accumulatedResources = 0;
                     
-                    // Агент умирает после достижения порога голодания
-                    if (agent.economics.starvationCounter >= this.starvationThreshold) {
+                    // Вероятность смерти увеличивается с каждым циклом голодания
+                    const deathProbability = Math.min(0.9, agent.economics.starvationCounter / this.starvationThreshold * 0.3);
+                    
+                    // Агент может умереть с определенной вероятностью или после достижения порога
+                    if (agent.economics.starvationCounter >= this.starvationThreshold || Math.random() < deathProbability) {
                         agent.economics.alive = false;
                         results.died++;
                     } else {
