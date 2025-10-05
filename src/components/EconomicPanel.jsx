@@ -362,7 +362,7 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
             </Card>
 
             {/* Статистика экономики */}
-            {params.enabled && economicStats && (
+            {params.enabled && economicStats && economicStats.aliveCount > 0 && (
                 <>
                     <Card>
                         <CardHeader>
@@ -385,36 +385,93 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">Уровень выживаемости</p>
                                         <p className="text-2xl font-bold">
-                                            {((economicStats.aliveCount / (economicStats.aliveCount + economicStats.deadCount)) * 100).toFixed(1)}%
+                                            {economicStats.survivalRate || 0}%
                                         </p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">Потери</p>
                                         <p className="text-2xl font-bold text-orange-500">
-                                            {((economicStats.deadCount / (economicStats.aliveCount + economicStats.deadCount)) * 100).toFixed(1)}%
+                                            {(100 - (economicStats.survivalRate || 0)).toFixed(1)}%
                                         </p>
                                     </div>
                                 </div>
-                                
-                                {/* Баланс выживаемости */}
-                                {params.baseProductivity && params.minSurvival && params.maxMultiplier && (
-                                    <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                                        <div className="text-xs font-semibold text-blue-400 mb-2">📊 Баланс выживаемости</div>
-                                        <div className="space-y-1 text-[10px] text-muted-foreground">
-                                            <div>Макс. производство: <span className="font-mono">{(params.baseProductivity * params.maxMultiplier).toFixed(1)}</span></div>
-                                            <div>Потребление: <span className="font-mono">{params.minSurvival}</span></div>
-                                            <div className={`font-semibold ${
-                                                (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
-                                                    ? 'text-green-400' 
-                                                    : 'text-red-400'
-                                            }`}>
-                                                Баланс: <span className="font-mono">
-                                                    {(params.baseProductivity * params.maxMultiplier - params.minSurvival).toFixed(1)}
-                                                </span> {
-                                                    (params.baseProductivity * params.maxMultiplier) >= params.minSurvival 
-                                                        ? '✅ Выживание возможно' 
-                                                        : '❌ Все умрут'
-                                                }
+                            </div>
+
+                            <Separator />
+
+                            {/* Ресурсы */}
+                            <div>
+                                <h4 className="text-sm font-medium mb-3">Ресурсы</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Всего ресурсов</p>
+                                        <p className="text-2xl font-bold">{economicStats.totalResources || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Средние</p>
+                                        <p className="text-2xl font-bold">{economicStats.averageResources || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Медиана</p>
+                                        <p className="text-2xl font-bold text-blue-600">{economicStats.medianResources || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Минимум</p>
+                                        <p className="text-xl font-bold text-red-600">{economicStats.minResources || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Максимум</p>
+                                        <p className="text-xl font-bold text-green-600">{economicStats.maxResources || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Ст. откл.</p>
+                                        <p className="text-xl font-bold text-purple-600">{economicStats.stdDevResources || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Распределение богатства */}
+                            <div>
+                                <h4 className="text-sm font-medium mb-3">Распределение богатства</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Всего накоплено</p>
+                                        <p className="text-2xl font-bold text-blue-600">{economicStats.totalAccumulated || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Средние накопления</p>
+                                        <p className="text-2xl font-bold text-indigo-600">{economicStats.averageAccumulated || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Коэф. неравенства</p>
+                                        <p className="text-2xl font-bold text-orange-600">{economicStats.wealthInequality || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">Размах</p>
+                                        <p className="text-2xl font-bold">
+                                            {((economicStats.maxResources || 0) - (economicStats.minResources || 0)).toFixed(1)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Квартили */}
+                                {economicStats.resourceDistribution && (
+                                    <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                                        <div className="text-xs font-semibold text-purple-400 mb-2">📊 Квартили распределения</div>
+                                        <div className="grid grid-cols-3 gap-2 text-[10px]">
+                                            <div>
+                                                <div className="text-muted-foreground">Q1 (25%)</div>
+                                                <div className="font-mono font-semibold">{economicStats.resourceDistribution.q1}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-muted-foreground">Q2 (50%)</div>
+                                                <div className="font-mono font-semibold">{economicStats.resourceDistribution.q2}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-muted-foreground">Q3 (75%)</div>
+                                                <div className="font-mono font-semibold">{economicStats.resourceDistribution.q3}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -423,38 +480,35 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
 
                             <Separator />
 
-                            {/* Ресурсы */}
-                            <div>
-                                <h4 className="text-sm font-medium mb-3">Ресурсы</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Всего ресурсов</p>
-                                        <p className="text-2xl font-bold">{(economicStats.totalResources || 0).toFixed(0)}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Средние ресурсы</p>
-                                        <p className="text-2xl font-bold">{(economicStats.averageResources || 0).toFixed(1)}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Минимум</p>
-                                        <p className="text-xl font-bold text-red-600">{(economicStats.minResources || 0).toFixed(1)}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Максимум</p>
-                                        <p className="text-xl font-bold text-green-600">{(economicStats.maxResources || 0).toFixed(1)}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Всего накоплено</p>
-                                        <p className="text-xl font-bold text-blue-600">{(economicStats.totalAccumulated || 0).toFixed(0)}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">Неравенство (размах)</p>
-                                        <p className="text-xl font-bold">
-                                            {((economicStats.maxResources - economicStats.minResources) || 0).toFixed(1)}
-                                        </p>
+                            {/* Социальные классы */}
+                            {economicStats.poorAgents !== undefined && (
+                                <div>
+                                    <h4 className="text-sm font-medium mb-3">Социальная стратификация</h4>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">Бедные</p>
+                                            <p className="text-2xl font-bold text-red-600">{economicStats.poorAgents || 0}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {economicStats.aliveCount > 0 ? ((economicStats.poorAgents / economicStats.aliveCount) * 100).toFixed(1) : 0}%
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">Средний класс</p>
+                                            <p className="text-2xl font-bold text-blue-600">{economicStats.middleClassAgents || 0}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {economicStats.aliveCount > 0 ? ((economicStats.middleClassAgents / economicStats.aliveCount) * 100).toFixed(1) : 0}%
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">Богатые</p>
+                                            <p className="text-2xl font-bold text-green-600">{economicStats.richAgents || 0}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {economicStats.aliveCount > 0 ? ((economicStats.richAgents / economicStats.aliveCount) * 100).toFixed(1) : 0}%
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </CardContent>
                     </Card>
                 </>

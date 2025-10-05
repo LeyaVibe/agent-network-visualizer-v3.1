@@ -225,11 +225,11 @@ export default function ClanPanel({ params, onParamsChange, clanStats, conflictS
                                     <div className="grid grid-cols-2 gap-3 text-sm">
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">Всего ресурсов</p>
-                                            <p className="font-bold text-lg text-green-600">{clan.resources.toFixed(0)}</p>
+                                            <p className="font-bold text-lg text-green-600">{clan.resources || 0}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">На члена</p>
-                                            <p className="font-bold text-lg">{(clan.resources / clan.size).toFixed(1)}</p>
+                                            <p className="font-bold text-lg">{clan.averageResourcesPerMember || 0}</p>
                                         </div>
                                     </div>
                                     
@@ -240,13 +240,13 @@ export default function ClanPanel({ params, onParamsChange, clanStats, conflictS
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">Выживших</p>
                                             <p className="font-bold text-lg text-green-600">
-                                                {clan.aliveMembers || clan.size}
+                                                {clan.aliveMembers || 0}
                                             </p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">Погибших</p>
                                             <p className="font-bold text-lg text-red-600">
-                                                {(clan.size - (clan.aliveMembers || clan.size))}
+                                                {clan.deadMembers || 0}
                                             </p>
                                         </div>
                                     </div>
@@ -255,29 +255,29 @@ export default function ClanPanel({ params, onParamsChange, clanStats, conflictS
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">Выживаемость</p>
                                             <p className="font-bold text-lg text-blue-600">
-                                                {(((clan.aliveMembers || clan.size) / clan.size) * 100).toFixed(1)}%
+                                                {clan.survivalRate || 0}%
                                             </p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-muted-foreground">Эффективность</p>
                                             <p className="font-bold text-lg text-purple-600">
-                                                {clan.efficiency ? clan.efficiency.toFixed(2) : 'N/A'}
+                                                {clan.efficiency || 0}
                                             </p>
                                         </div>
                                     </div>
                                     
-                                    {clan.productivity && (
+                                    {(clan.productivity !== undefined || clan.consumption !== undefined) && (
                                         <div className="grid grid-cols-2 gap-3 text-sm">
                                             <div className="space-y-1">
                                                 <p className="text-muted-foreground">Производительность</p>
                                                 <p className="font-bold text-lg text-indigo-600">
-                                                    {clan.productivity.toFixed(1)}
+                                                    {clan.productivity || 0}
                                                 </p>
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-muted-foreground">Потребление</p>
                                                 <p className="font-bold text-lg text-orange-600">
-                                                    {clan.consumption ? clan.consumption.toFixed(1) : 'N/A'}
+                                                    {clan.consumption || 0}
                                                 </p>
                                             </div>
                                         </div>

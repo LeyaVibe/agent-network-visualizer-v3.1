@@ -90,10 +90,12 @@ export class EconomicEngine {
         // Добавляем случайность для создания разнообразия
         const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
         
-        // Фактор усталости - снижение производительности при низких ресурсах
-        const fatigueFactor = agent.economics.currentResources < this.minSurvival 
-            ? 0.7 + (agent.economics.currentResources / this.minSurvival) * 0.3
-            : 1.0;
+        // Фактор усталости - плавное снижение производительности при низких ресурсах
+        // Используем сигмоидную функцию для более плавного перехода
+        const resourceRatio = agent.economics.currentResources / this.minSurvival;
+        const fatigueFactor = resourceRatio >= 1.0 
+            ? 1.0 
+            : 0.6 + 0.4 * resourceRatio; // Диапазон от 0.6 до 1.0
 
         // Итоговое производство с большей вариативностью
         const production = this.baseProductivity * cappedSocialMultiplier * efficiencyFactor * randomFactor * fatigueFactor;
@@ -244,25 +246,75 @@ export class EconomicEngine {
             return {
                 aliveCount: 0,
                 deadCount: deadAgents.length,
+                totalAgents: agents.length,
+                survivalRate: 0,
                 totalResources: 0,
                 averageResources: 0,
+                medianResources: 0,
                 minResources: 0,
                 maxResources: 0,
-                totalAccumulated: 0
+                stdDevResources: 0,
+                totalAccumulated: 0,
+                averageAccumulated: 0,
+                resourceDistribution: {
+                    q1: 0,
+                    q2: 0,
+                    q3: 0
+                },
+                wealthInequality: 0
             };
         }
 
-        const resources = aliveAgents.map(a => a.economics.currentResources);
-        const accumulated = aliveAgents.map(a => a.economics.accumulatedResources);
+        const resources = aliveAgents.map(a => a.economics.currentResources || 0);
+        const accumulated = aliveAgents.map(a => a.economics.accumulatedResources || 0);
+        
+        // Сортируем для расчета квартилей и медианы
+        const sortedResources = [...resources].sort((a, b) => a - b);
+        
+        // Расчет квартилей
+        const q1Index = Math.floor(sortedResources.length * 0.25);
+        const q2Index = Math.floor(sortedResources.length * 0.5);
+        const q3Index = Math.floor(sortedResources.length * 0.75);
+        
+        const q1 = sortedResources[q1Index] || 0;
+        const q2 = sortedResources[q2Index] || 0; // медиана
+        const q3 = sortedResources[q3Index] || 0;
+        
+        // Расчет среднего
+        const totalResources = resources.reduce((a, b) => a + b, 0);
+        const averageResources = totalResources / aliveAgents.length;
+        
+        // Расчет стандартного отклонения
+        const variance = resources.reduce((sum, r) => sum + Math.pow(r - averageResources, 2), 0) / aliveAgents.length;
+        const stdDev = Math.sqrt(variance);
+        
+        // Расчет коэффициента неравенства (упрощенный Gini)
+        const totalAccumulated = accumulated.reduce((a, b) => a + b, 0);
+        const wealthInequality = averageResources > 0 ? (stdDev / averageResources) : 0;
 
         return {
             aliveCount: aliveAgents.length,
             deadCount: deadAgents.length,
-            totalResources: resources.reduce((a, b) => a + b, 0),
-            averageResources: resources.reduce((a, b) => a + b, 0) / aliveAgents.length,
-            minResources: Math.min(...resources),
-            maxResources: Math.max(...resources),
-            totalAccumulated: accumulated.reduce((a, b) => a + b, 0)
+            totalAgents: agents.length,
+            survivalRate: parseFloat((aliveAgents.length / agents.length * 100).toFixed(1)),
+            totalResources: parseFloat(totalResources.toFixed(1)),
+            averageResources: parseFloat(averageResources.toFixed(1)),
+            medianResources: parseFloat(q2.toFixed(1)),
+            minResources: parseFloat(Math.min(...resources).toFixed(1)),
+            maxResources: parseFloat(Math.max(...resources).toFixed(1)),
+            stdDevResources: parseFloat(stdDev.toFixed(1)),
+            totalAccumulated: parseFloat(totalAccumulated.toFixed(1)),
+            averageAccumulated: parseFloat((totalAccumulated / aliveAgents.length).toFixed(1)),
+            resourceDistribution: {
+                q1: parseFloat(q1.toFixed(1)),
+                q2: parseFloat(q2.toFixed(1)),
+                q3: parseFloat(q3.toFixed(1))
+            },
+            wealthInequality: parseFloat(wealthInequality.toFixed(2)),
+            // Дополнительная информация для анализа
+            poorAgents: sortedResources.filter(r => r < this.minSurvival * 1.5).length,
+            richAgents: sortedResources.filter(r => r > averageResources * 2).length,
+            middleClassAgents: aliveAgents.length - sortedResources.filter(r => r < this.minSurvival * 1.5).length - sortedResources.filter(r => r > averageResources * 2).length
         };
     }
 

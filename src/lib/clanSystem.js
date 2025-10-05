@@ -170,7 +170,8 @@ export class ClanSystem {
     _calculateAgentStrength(agentIndex, clanMemberIndices, connectionMatrix) {
         let internalStrength = 0;
         let externalStrength = 0;
-        let totalConnections = 0;
+        let internalConnections = 0;
+        let externalConnections = 0;
 
         if (!connectionMatrix[agentIndex]) return 0;
 
@@ -180,7 +181,7 @@ export class ClanSystem {
                 const weight = connectionMatrix[agentIndex][otherIndex] || 0;
                 if (weight > 0) {
                     internalStrength += weight;
-                    totalConnections++;
+                    internalConnections++;
                 }
             }
         });
@@ -191,17 +192,25 @@ export class ClanSystem {
                 const weight = connectionMatrix[agentIndex][i] || 0;
                 if (weight > 0) {
                     externalStrength += weight * 0.5; // Внешние связи менее важны для клана
-                    totalConnections++;
+                    externalConnections++;
                 }
             }
         }
 
-        // Нормализация по количеству связей для справедливого сравнения
-        const normalizedStrength = totalConnections > 0 
-            ? (internalStrength + externalStrength) / Math.sqrt(totalConnections)
+        // Улучшенная нормализация: взвешенная средняя сила связей
+        // Внутренние связи важнее (вес 2), внешние менее важны (вес 1)
+        const avgInternalStrength = internalConnections > 0 ? internalStrength / internalConnections : 0;
+        const avgExternalStrength = externalConnections > 0 ? externalStrength / externalConnections : 0;
+        
+        const totalWeight = (internalConnections * 2) + externalConnections;
+        const normalizedStrength = totalWeight > 0
+            ? ((avgInternalStrength * internalConnections * 2) + (avgExternalStrength * externalConnections)) / totalWeight
             : 0;
 
-        return normalizedStrength;
+        // Бонус за количество связей (но с убывающей отдачей)
+        const connectionBonus = Math.sqrt(internalConnections + externalConnections * 0.5);
+        
+        return normalizedStrength * (1 + connectionBonus * 0.1);
     }
 
     /**
@@ -478,25 +487,31 @@ export class ClanSystem {
     }
 
     /**
-     * Межклановое распределение излишков
-     * Кланы делят общий пул излишков по порядку силы
-     * Свободные агенты получают оставшуюся долю поровну
+     * Межклановое распределение излишков ресурсов
+     * Кланы делятся излишками между собой пропорционально силе
      */
-    distributeInterClanSurplus(agents, connectionMatrix) {
+    distributeResourcesBetweenClans(agents, economicEngine = null) {
         if (this.clans.length === 0) return;
 
-        // Сортируем кланы по силе (от сильного к слабому)
+        // Получаем параметры из экономического движка
+        const minSurvival = economicEngine ? economicEngine.minSurvival : 10;
+        const bufferMultiplier = 2.5; // Увеличен буфер для более стабильного распределения
+
+        // Сортируем кланы по силе
         const sortedClans = [...this.clans].sort((a, b) => b.strength - a.strength);
 
-        // Собираем общий пул излишков от всех агентов
+        // Собираем излишки со всех агентов
         let totalSurplus = 0;
-        const minSurvival = 10;
-
+        const surplusMap = new Map(); // Отслеживаем, сколько взяли у каждого агента
+        
         agents.forEach(agent => {
             if (agent.economics && agent.economics.alive) {
-                const surplus = Math.max(0, agent.economics.currentResources - minSurvival * 1.5);
+                const bufferZone = minSurvival * bufferMultiplier;
+                const surplus = Math.max(0, agent.economics.currentResources - bufferZone);
+                
                 if (surplus > 0) {
                     totalSurplus += surplus;
+                    surplusMap.set(agent.id, surplus);
                     agent.economics.currentResources -= surplus;
                 }
             }
@@ -504,25 +519,34 @@ export class ClanSystem {
 
         if (totalSurplus <= 0) return;
 
-        console.log(`Межклановое распределение: ${totalSurplus.toFixed(2)} излишков между ${sortedClans.length} кланами`);
+        // Логирование только если есть eventLogger
+        if (this.eventLogger && this.eventLogger.logEvent) {
+            this.eventLogger.logEvent('inter_clan_distribution', {
+                totalSurplus: totalSurplus,
+                clansCount: sortedClans.length,
+                bufferZone: minSurvival * bufferMultiplier
+            });
+        }
 
         // Распределяем между кланами пропорционально их силе
         const totalStrength = sortedClans.reduce((sum, clan) => sum + clan.strength, 0);
+        
+        if (totalStrength === 0) return; // Защита от деления на ноль
+        
         let distributedToClans = 0;
 
         sortedClans.forEach(clan => {
             const clanShare = (clan.strength / totalStrength) * totalSurplus * 0.8; // 80% кланам
             distributedToClans += clanShare;
 
-            // Распределяем долю клана между его членами
-            const memberShare = clanShare / clan.members.length;
-            clan.members.forEach(agent => {
-                if (agent.economics && agent.economics.alive) {
-                    agent.economics.currentResources += memberShare;
-                }
+            // Распределяем долю клана между его живыми членами
+            const aliveMembers = clan.members.filter(m => m.economics && m.economics.alive);
+            if (aliveMembers.length === 0) return;
+            
+            const memberShare = clanShare / aliveMembers.length;
+            aliveMembers.forEach(agent => {
+                agent.economics.currentResources += memberShare;
             });
-
-            console.log(`  Клан ${clan.id}: получил ${clanShare.toFixed(2)} (${memberShare.toFixed(2)} на члена)`);
         });
 
         // Оставшиеся 20% распределяем между свободными агентами
@@ -536,8 +560,6 @@ export class ClanSystem {
                     agent.economics.currentResources += freeAgentShare;
                 }
             });
-
-            console.log(`  Свободные агенты (${freeAgents.length}): получили ${freeAgentsSurplus.toFixed(2)} (${freeAgentShare.toFixed(2)} на агента)`);
         }
     }
 
@@ -612,6 +634,22 @@ export class ClanSystem {
      * Получение статистики по кланам
      */
     getClanStatistics() {
+        if (this.clans.length === 0) {
+            return {
+                totalClans: 0,
+                totalMembers: 0,
+                aliveMembers: 0,
+                deadMembers: 0,
+                survivalRate: 0,
+                averageSize: 0,
+                averageDensity: 0,
+                averageStrength: 0,
+                totalResources: 0,
+                averageResources: 0,
+                clans: []
+            };
+        }
+
         // Подсчет живых и мертвых агентов
         const aliveAgents = this.clans.reduce((sum, c) => {
             return sum + c.members.filter(m => m.economics && m.economics.alive).length;
@@ -619,40 +657,46 @@ export class ClanSystem {
         
         const totalMembers = this.clans.reduce((sum, c) => sum + c.members.length, 0);
         const deadAgents = totalMembers - aliveAgents;
+        const totalResources = this.clans.reduce((sum, c) => sum + (c.totalResources || 0), 0);
+        const totalStrength = this.clans.reduce((sum, c) => sum + (c.strength || 0), 0);
+        const totalDensity = this.clans.reduce((sum, c) => sum + (c.density || 0), 0);
         
         return {
             totalClans: this.clans.length,
             totalMembers: totalMembers,
             aliveMembers: aliveAgents,
             deadMembers: deadAgents,
-            survivalRate: totalMembers > 0 ? (aliveAgents / totalMembers * 100) : 0,
-            averageSize: this.clans.length > 0 
-                ? this.clans.reduce((sum, c) => sum + c.members.length, 0) / this.clans.length 
-                : 0,
-            averageDensity: this.clans.length > 0
-                ? this.clans.reduce((sum, c) => sum + c.density, 0) / this.clans.length
-                : 0,
-            totalResources: this.clans.reduce((sum, c) => sum + c.totalResources, 0),
+            survivalRate: totalMembers > 0 ? parseFloat((aliveAgents / totalMembers * 100).toFixed(1)) : 0,
+            averageSize: parseFloat((totalMembers / this.clans.length).toFixed(1)),
+            averageDensity: parseFloat((totalDensity / this.clans.length).toFixed(2)),
+            averageStrength: parseFloat((totalStrength / this.clans.length).toFixed(1)),
+            totalResources: Math.round(totalResources),
+            averageResources: aliveAgents > 0 ? parseFloat((totalResources / aliveAgents).toFixed(1)) : 0,
             clans: this.clans.map(c => {
                 const aliveMembers = c.members.filter(m => m.economics && m.economics.alive).length;
                 const deadMembers = c.members.length - aliveMembers;
                 const survivalRate = c.members.length > 0 ? (aliveMembers / c.members.length * 100) : 0;
+                
+                // Пересчитываем ресурсы клана для актуальности
+                const currentResources = c.members
+                    .filter(m => m.economics && m.economics.alive)
+                    .reduce((sum, m) => sum + (m.economics.currentResources || 0), 0);
                 
                 return {
                     id: c.id,
                     size: c.members.length,
                     aliveMembers: aliveMembers,
                     deadMembers: deadMembers,
-                    survivalRate: survivalRate,
-                    density: parseFloat(c.density.toFixed(2)),
-                    strength: parseFloat(c.strength.toFixed(1)),
-                    resources: Math.round(c.totalResources),
-                    averageResourcesPerMember: aliveMembers > 0 ? (c.totalResources / aliveMembers) : 0,
+                    survivalRate: parseFloat(survivalRate.toFixed(1)),
+                    density: parseFloat((c.density || 0).toFixed(2)),
+                    strength: parseFloat((c.strength || 0).toFixed(1)),
+                    resources: Math.round(currentResources),
+                    averageResourcesPerMember: aliveMembers > 0 ? parseFloat((currentResources / aliveMembers).toFixed(1)) : 0,
                     rule: c.decision ? c.decision.rule : 'none',
                     subrule: c.decision ? c.decision.subrule : null,
-                    efficiency: this._calculateClanEfficiency(c),
-                    productivity: this._calculateClanProductivity(c),
-                    consumption: this._calculateClanConsumption(c)
+                    efficiency: parseFloat(this._calculateClanEfficiency(c).toFixed(2)),
+                    productivity: parseFloat(this._calculateClanProductivity(c).toFixed(1)),
+                    consumption: parseFloat(this._calculateClanConsumption(c).toFixed(1))
                 };
             })
         };
