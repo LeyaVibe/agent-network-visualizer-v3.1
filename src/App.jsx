@@ -95,7 +95,7 @@ function App() {
   // Параметры кланов
   const [clanParams, setClanParams] = useState({
     minClanSize: 3,
-    densityThreshold: 0.5,
+    densityThreshold: 0.2, // Снижено с 0.5 до 0.2 для реалистичного формирования кланов
     polarizationFactor: 3,
     resourceStealRatio: 2/3
   });

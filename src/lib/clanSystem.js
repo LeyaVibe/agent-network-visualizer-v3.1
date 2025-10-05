@@ -20,7 +20,7 @@ export const DEMOCRACY_SUBRULES = {
 export class ClanSystem {
     constructor(params = {}, eventLogger = null) {
         this.minClanSize = params.minClanSize || 3;
-        this.densityThreshold = params.densityThreshold || 0.5;
+        this.densityThreshold = params.densityThreshold || 0.2; // Снижено с 0.5 до 0.2 (20% связей)
         this.clans = [];
         this.clanHistory = [];
         this.eventLogger = eventLogger;
