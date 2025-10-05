@@ -41,7 +41,7 @@ export default function EconomicPanel({ params, onParamsChange, economicStats })
                         </div>
                         <Switch
                             id="economic-enabled"
-                            checked={params.enabled || false}
+                            checked={params.enabled !== false} // Изменено: включен по умолчанию
                             onCheckedChange={(checked) => handleChange('enabled', checked)}
                         />
                     </div>

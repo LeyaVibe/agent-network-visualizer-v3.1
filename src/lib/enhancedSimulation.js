@@ -83,10 +83,7 @@ export function runEnhancedSimulation(params) {
 
     // Основной цикл симуляции
     for (let cycle = 0; cycle < cycles; cycle++) {
-        // Уведомление о начале цикла
-        if (eventLogger) {
-            eventLogger.startCycle(cycle);
-        }
+        // Уведомление о начале цикла (метод startCycle не нужен)
         if (onCycleComplete) {
             onCycleComplete(cycle);
         }
