@@ -8,13 +8,13 @@ export class EconomicEngine {
         // Базовые параметры производства
         this.baseProductivity = params.baseProductivity || 10;
         this.minSurvival = params.minSurvival || 10;
-        this.maxMultiplier = params.maxMultiplier || 2.0;
+        this.maxMultiplier = params.maxMultiplier || 2.5;
         this.strongConnectionThreshold = params.strongConnectionThreshold || 0.3;
-        this.connectionBonus = params.connectionBonus || 0.1;
+        this.connectionBonus = params.connectionBonus || 0.4;
         
         // Параметры сложности (новые)
         this.minEfficiency = params.minEfficiency !== undefined ? params.minEfficiency : 0.8;
-        this.accumulationRate = params.accumulationRate !== undefined ? params.accumulationRate : 0.1;
+        this.accumulationRate = params.accumulationRate !== undefined ? params.accumulationRate : 0.3;
         this.starvationThreshold = params.starvationThreshold !== undefined ? params.starvationThreshold : 3;
         this.interClanDistribution = params.interClanDistribution !== false;
         
@@ -70,9 +70,10 @@ export class EconomicEngine {
             }
         }
 
-        // Социальный множитель с убывающей отдачей
+        // Социальный множитель с уменьшенной убывающей отдачей
+        // Уменьшаем знаменатель для более сильного эффекта от связей
         const socialMultiplier = connectionCount > 0 
-            ? 1 + (totalConnectionWeight * this.connectionBonus) / (1 + connectionCount * 0.1)
+            ? 1 + (totalConnectionWeight * this.connectionBonus) / (1 + connectionCount * 0.05)
             : 1;
 
         // Ограничиваем максимальный множитель
@@ -88,7 +89,7 @@ export class EconomicEngine {
         );
 
         // Добавляем случайность для создания разнообразия
-        const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
+        const randomFactor = 0.7 + Math.random() * 0.6; // 0.7 - 1.3
         
         // Фактор усталости - плавное снижение производительности при низких ресурсах
         // Используем сигмоидную функцию для более плавного перехода
@@ -127,9 +128,9 @@ export class EconomicEngine {
                 agent.economics.starvationCounter = 0;
             }
 
-            // Базовое потребление с небольшой случайностью
+            // Базовое потребление с увеличенной случайностью
             const baseConsumption = this.minSurvival;
-            const consumptionVariation = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
+            const consumptionVariation = 0.7 + Math.random() * 0.6; // 0.7 - 1.3
             const consumption = baseConsumption * consumptionVariation;
 
             // Проверка достаточности ресурсов
@@ -205,13 +206,19 @@ export class EconomicEngine {
             }
         });
 
-        // Фаза 1.5: Накопление излишков
+        // Фаза 1.5: Накопление излишков (прогрессивное)
         agents.forEach(agent => {
             if (agent.economics && agent.economics.alive) {
                 const survivalThreshold = this.minSurvival * 2; // Буферный запас
                 if (agent.economics.currentResources > survivalThreshold) {
                     const surplus = agent.economics.currentResources - survivalThreshold;
-                    agent.economics.accumulatedResources += surplus * this.accumulationRate;
+                    
+                    // Прогрессивное накопление: богатые накапливают быстрее
+                    // Базовая ставка увеличивается с ростом накоплений
+                    const wealthBonus = Math.min(0.3, agent.economics.accumulatedResources / (this.minSurvival * 10) * 0.3);
+                    const effectiveRate = this.accumulationRate + wealthBonus;
+                    
+                    agent.economics.accumulatedResources += surplus * effectiveRate;
                 }
             }
         });
@@ -292,6 +299,14 @@ export class EconomicEngine {
         const totalAccumulated = accumulated.reduce((a, b) => a + b, 0);
         const wealthInequality = averageResources > 0 ? (stdDev / averageResources) : 0;
 
+        // Улучшенная классификация на основе квартилей
+        // Бедные: ниже Q1 (нижние 25%)
+        // Средний класс: между Q1 и Q3 (средние 50%)
+        // Богатые: выше Q3 (верхние 25%)
+        const poorAgents = sortedResources.filter(r => r < q1).length;
+        const richAgents = sortedResources.filter(r => r > q3).length;
+        const middleClassAgents = aliveAgents.length - poorAgents - richAgents;
+
         return {
             aliveCount: aliveAgents.length,
             deadCount: deadAgents.length,
@@ -311,10 +326,15 @@ export class EconomicEngine {
                 q3: parseFloat(q3.toFixed(1))
             },
             wealthInequality: parseFloat(wealthInequality.toFixed(2)),
-            // Дополнительная информация для анализа
-            poorAgents: sortedResources.filter(r => r < this.minSurvival * 1.5).length,
-            richAgents: sortedResources.filter(r => r > averageResources * 2).length,
-            middleClassAgents: aliveAgents.length - sortedResources.filter(r => r < this.minSurvival * 1.5).length - sortedResources.filter(r => r > averageResources * 2).length
+            // Социальная стратификация на основе квартилей
+            poorAgents,
+            richAgents,
+            middleClassAgents,
+            // Пороги для классов (для отображения)
+            classThresholds: {
+                poor: parseFloat(q1.toFixed(1)),
+                rich: parseFloat(q3.toFixed(1))
+            }
         };
     }
 

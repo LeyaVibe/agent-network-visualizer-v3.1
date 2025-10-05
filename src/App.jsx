@@ -83,10 +83,13 @@ function App() {
     enabled: true, // Изменено: экономическая модель включена по умолчанию
     baseProductivity: 10,
     minSurvival: 10,
-    maxMultiplier: 2.0,
+    maxMultiplier: 2.5,
     strongConnectionThreshold: 0.3,
-    connectionBonus: 0.1,
-    economicCycleInterval: 5
+    connectionBonus: 0.4,
+    accumulationRate: 0.3,
+    economicCycleInterval: 5,
+    tradeEnabled: true,
+    investmentEnabled: true
   });
 
   // Параметры кланов
