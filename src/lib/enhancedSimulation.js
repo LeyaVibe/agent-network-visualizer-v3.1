@@ -58,7 +58,7 @@ export function runEnhancedSimulation(params) {
         clanSystem = new ClanSystem({}, eventLogger);
     }
     
-    const conflictMechanics = new ConflictMechanics(conflictParams);
+    const conflictMechanics = new ConflictMechanics(conflictParams, eventLogger);
 
     // Инициализация экономики агентов
     economicEngine.initializeAgentEconomics(agents);

@@ -4,7 +4,7 @@
  */
 
 export class EconomicEngine {
-    constructor(params = {}) {
+    constructor(params = {}, eventLogger = null) {
         // Базовые параметры производства
         // Уменьшаем базовую производительность для создания дефицита
         this.baseProductivity = params.baseProductivity || 7;
@@ -18,6 +18,9 @@ export class EconomicEngine {
         this.accumulationRate = params.accumulationRate !== undefined ? params.accumulationRate : 0.3;
         this.starvationThreshold = params.starvationThreshold !== undefined ? params.starvationThreshold : 3;
         this.interClanDistribution = params.interClanDistribution !== false;
+        
+        // Event logger для записи событий
+        this.eventLogger = eventLogger;
         
         // Начальные ресурсы (зависят от сложности)
         // Уменьшаем начальные ресурсы для создания большей конкуренции
@@ -177,6 +180,16 @@ export class EconomicEngine {
                     if (agent.economics.starvationCounter >= this.starvationThreshold || Math.random() < deathProbability) {
                         agent.economics.alive = false;
                         results.died++;
+                        
+                        // Логируем событие смерти
+                        if (this.eventLogger) {
+                            this.eventLogger.logEvent('agent_death', {
+                                agentId: i,
+                                cause: 'starvation',
+                                resources: agent.economics.currentResources,
+                                starvationDays: agent.economics.starvationCounter
+                            }, 'critical');
+                        }
                     } else {
                         results.survived++;
                     }

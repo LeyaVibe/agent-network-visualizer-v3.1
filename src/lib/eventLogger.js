@@ -142,14 +142,79 @@ export class EventLogger {
             case EVENT_TYPES.CONNECTION_FORMED:
                 return `Связь образована между агентами ${data.agent1} и ${data.agent2} (сила: ${safeFixed(data.strength)})`;
             
+            case EVENT_TYPES.CONNECTION_STRENGTHENED:
+                return `Связь усилилась между агентами ${data.agent1} и ${data.agent2} (${safeFixed(data.oldStrength)} → ${safeFixed(data.newStrength)})`;
+            
+            case EVENT_TYPES.CONNECTION_WEAKENED:
+                return `Связь ослабла между агентами ${data.agent1} и ${data.agent2} (${safeFixed(data.oldStrength)} → ${safeFixed(data.newStrength)})`;
+            
+            case EVENT_TYPES.CONNECTION_BROKEN:
+                return `Связь разорвана между агентами ${data.agent1} и ${data.agent2} (была: ${safeFixed(data.oldStrength)})`;
+            
+            case EVENT_TYPES.OPINION_SHIFT:
+                return `Агент ${data.agentId} изменил мнение по теме "${data.topic || 'неизвестно'}" (${safeFixed(data.oldOpinion)} → ${safeFixed(data.newOpinion)})`;
+            
+            case EVENT_TYPES.RESOURCE_CONSUMPTION:
+                return `Агент ${data.agentId} потребил ${safeFixed(data.amount)} ресурсов (осталось: ${safeFixed(data.remaining)})`;
+            
+            case EVENT_TYPES.CLAN_DISSOLVED:
+                return `Клан ${data.clanId} распущен (было ${data.memberCount || 0} членов)`;
+            
+            case EVENT_TYPES.CLAN_MEMBER_JOINED:
+                return `Агент ${data.agentId} присоединился к клану ${data.clanId}`;
+            
+            case EVENT_TYPES.CLAN_MEMBER_LEFT:
+                return `Агент ${data.agentId} покинул клан ${data.clanId}`;
+            
+            case EVENT_TYPES.CLAN_LEADERSHIP_CHANGE:
+                return `Клан ${data.clanId}: новый лидер - агент ${data.newLeader} (был: ${data.oldLeader})`;
+            
+            case EVENT_TYPES.CLAN_RESOURCE_REDISTRIBUTION:
+                return `Клан ${data.clanId} перераспределил ${safeFixed(data.amount)} ресурсов между ${data.memberCount || 0} членами`;
+            
+            case EVENT_TYPES.CONFLICT_RESOLVED:
+                return `Конфликт разрешен между кланами ${data.clan1} и ${data.clan2} (исход: ${data.outcome || 'неизвестно'})`;
+            
+            case EVENT_TYPES.ALLIANCE_FORMED:
+                return `Альянс образован между кланами ${data.clan1} и ${data.clan2}`;
+            
+            case EVENT_TYPES.ALLIANCE_BROKEN:
+                return `Альянс разрушен между кланами ${data.clan1} и ${data.clan2}`;
+            
+            case EVENT_TYPES.TERRITORY_DISPUTE:
+                return `Территориальный спор между кланами ${data.clan1} и ${data.clan2}`;
+            
+            case EVENT_TYPES.WEALTH_INEQUALITY:
+                return `Неравенство богатства: коэффициент ${safeFixed(data.coefficient)} (${data.trend || 'стабильно'})`;
+            
             case EVENT_TYPES.POLARIZATION_EVENT:
                 return `Поляризация: ${data.connectionCount || 0} связей ослаблены на ${safeFixed(data.averageWeakening, 1)}%`;
+            
+            case EVENT_TYPES.SIMULATION_STARTED:
+                return `Симуляция запущена (${data.agentCount || 0} агентов, ${data.cycles || 0} циклов)`;
+            
+            case EVENT_TYPES.SIMULATION_PAUSED:
+                return `Симуляция приостановлена на цикле ${data.cycle}`;
+            
+            case EVENT_TYPES.SIMULATION_ENDED:
+                return `Симуляция завершена после ${data.totalCycles || 0} циклов`;
+            
+            case EVENT_TYPES.CYCLE_COMPLETED:
+                return `Цикл ${data.cycle} завершен (${data.eventsCount || 0} событий)`;
             
             case EVENT_TYPES.MILESTONE_REACHED:
                 return `Достигнута веха: ${data.milestone} (цикл ${data.cycle})`;
             
             default:
-                return `Событие ${type}: ${JSON.stringify(data)}`;
+                // Fallback для неизвестных типов - показываем тип и ключевые данные
+                const keyData = [];
+                if (data.agentId !== undefined) keyData.push(`агент ${data.agentId}`);
+                if (data.clanId !== undefined) keyData.push(`клан ${data.clanId}`);
+                if (data.amount !== undefined) keyData.push(`${safeFixed(data.amount)} ресурсов`);
+                
+                return keyData.length > 0 
+                    ? `${type}: ${keyData.join(', ')}`
+                    : `Событие: ${type}`;
         }
     }
 

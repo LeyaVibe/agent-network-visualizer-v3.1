@@ -6,10 +6,11 @@
 import { DISTRIBUTION_RULES } from './clanSystem.js';
 
 export class ConflictMechanics {
-    constructor(params = {}) {
+    constructor(params = {}, eventLogger = null) {
         this.polarizationFactor = params.polarizationFactor || 3; // Во сколько раз ослабляются связи
         this.resourceStealRatio = params.resourceStealRatio || 2/3; // Доля накопленных ресурсов для кражи
         this.conflictHistory = [];
+        this.eventLogger = eventLogger;
     }
 
     /**
@@ -77,6 +78,28 @@ export class ConflictMechanics {
 
         // Сохранение в историю
         this.conflictHistory.push(conflictResult);
+
+        // Логирование события конфликта
+        if (this.eventLogger) {
+            this.eventLogger.logEvent('conflict_initiated', {
+                attackerId: attackerClan.id,
+                victimId: victimClan.id,
+                attackerStrength: attackerTotalStrength,
+                victimStrength: victimTotalStrength,
+                stolenResources: stolen,
+                attackerSupport: sideSelection.attacker.length,
+                victimSupport: sideSelection.victim.length
+            }, 'warning');
+            
+            // Если были украдены ресурсы, логируем отдельно
+            if (stolen > 0) {
+                this.eventLogger.logEvent('resource_theft', {
+                    attackerId: attackerClan.id,
+                    victimId: victimClan.id,
+                    amount: stolen
+                }, 'warning');
+            }
+        }
 
         return conflictResult;
     }

@@ -298,9 +298,12 @@ export default function StatisticsPanel({ eventLogger, currentCycle }) {
                                                     </div>
                                                     
                                                     <button
-                                                        onClick={() => setSelectedCycle(
-                                                            selectedCycle === cycleData.cycle ? null : cycleData.cycle
-                                                        )}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setSelectedCycle(
+                                                                selectedCycle === cycleData.cycle ? null : cycleData.cycle
+                                                            );
+                                                        }}
                                                         className="w-full px-3 py-2 text-xs bg-muted hover:bg-muted/80 rounded transition-colors"
                                                     >
                                                         {selectedCycle === cycleData.cycle 
@@ -442,17 +445,20 @@ export default function StatisticsPanel({ eventLogger, currentCycle }) {
                                             <CardTitle className="text-sm font-medium">
                                                 Динамика популяции
                                             </CardTitle>
+                                            <CardDescription className="text-xs">
+                                                События за последние 20 циклов
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="space-y-2">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-sm">Рождения</span>
+                                                    <span className="text-sm">Рождения (события)</span>
                                                     <Badge variant="default">
                                                         {statistics.trends.populationDynamics.birthRate}
                                                     </Badge>
                                                 </div>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-sm">Смерти</span>
+                                                    <span className="text-sm">Смерти (события)</span>
                                                     <Badge variant="destructive">
                                                         {statistics.trends.populationDynamics.deathRate}
                                                     </Badge>
@@ -467,6 +473,10 @@ export default function StatisticsPanel({ eventLogger, currentCycle }) {
                                                     </div>
                                                 </div>
                                             </div>
+                                            <p className="text-xs text-muted-foreground mt-3">
+                                                💡 Эти цифры показывают количество событий рождения/смерти, 
+                                                а не общую популяцию агентов
+                                            </p>
                                         </CardContent>
                                     </Card>
                                 </>
