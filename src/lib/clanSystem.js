@@ -18,11 +18,12 @@ export const DEMOCRACY_SUBRULES = {
 };
 
 export class ClanSystem {
-    constructor(params = {}) {
+    constructor(params = {}, eventLogger = null) {
         this.minClanSize = params.minClanSize || 3;
         this.densityThreshold = params.densityThreshold || 0.5;
         this.clans = [];
         this.clanHistory = [];
+        this.eventLogger = eventLogger;
     }
 
     /**
@@ -65,6 +66,17 @@ export class ClanSystem {
                 clan.totalResources = this._calculateClanResources(clan);
 
                 this.clans.push(clan);
+                
+                // Логирование создания клана (если есть eventLogger)
+                if (this.eventLogger && this.eventLogger.logEvent) {
+                    this.eventLogger.logEvent('clan_formed', {
+                        clanId: clan.id,
+                        memberCount: clan.members.length,
+                        density: clan.density,
+                        strength: clan.strength,
+                        resources: clan.totalResources
+                    });
+                }
             }
         });
 
@@ -600,8 +612,20 @@ export class ClanSystem {
      * Получение статистики по кланам
      */
     getClanStatistics() {
+        // Подсчет живых и мертвых агентов
+        const aliveAgents = this.clans.reduce((sum, c) => {
+            return sum + c.members.filter(m => m.economics && m.economics.alive).length;
+        }, 0);
+        
+        const totalMembers = this.clans.reduce((sum, c) => sum + c.members.length, 0);
+        const deadAgents = totalMembers - aliveAgents;
+        
         return {
             totalClans: this.clans.length,
+            totalMembers: totalMembers,
+            aliveMembers: aliveAgents,
+            deadMembers: deadAgents,
+            survivalRate: totalMembers > 0 ? (aliveAgents / totalMembers * 100) : 0,
             averageSize: this.clans.length > 0 
                 ? this.clans.reduce((sum, c) => sum + c.members.length, 0) / this.clans.length 
                 : 0,
@@ -609,15 +633,28 @@ export class ClanSystem {
                 ? this.clans.reduce((sum, c) => sum + c.density, 0) / this.clans.length
                 : 0,
             totalResources: this.clans.reduce((sum, c) => sum + c.totalResources, 0),
-            clans: this.clans.map(c => ({
-                id: c.id,
-                size: c.members.length,
-                density: c.density.toFixed(2),
-                strength: c.strength.toFixed(1),
-                resources: Math.round(c.totalResources),
-                rule: c.decision ? c.decision.rule : 'none',
-                subrule: c.decision ? c.decision.subrule : null
-            }))
+            clans: this.clans.map(c => {
+                const aliveMembers = c.members.filter(m => m.economics && m.economics.alive).length;
+                const deadMembers = c.members.length - aliveMembers;
+                const survivalRate = c.members.length > 0 ? (aliveMembers / c.members.length * 100) : 0;
+                
+                return {
+                    id: c.id,
+                    size: c.members.length,
+                    aliveMembers: aliveMembers,
+                    deadMembers: deadMembers,
+                    survivalRate: survivalRate,
+                    density: parseFloat(c.density.toFixed(2)),
+                    strength: parseFloat(c.strength.toFixed(1)),
+                    resources: Math.round(c.totalResources),
+                    averageResourcesPerMember: aliveMembers > 0 ? (c.totalResources / aliveMembers) : 0,
+                    rule: c.decision ? c.decision.rule : 'none',
+                    subrule: c.decision ? c.decision.subrule : null,
+                    efficiency: this._calculateClanEfficiency(c),
+                    productivity: this._calculateClanProductivity(c),
+                    consumption: this._calculateClanConsumption(c)
+                };
+            })
         };
     }
 
@@ -641,5 +678,48 @@ export class ClanSystem {
     reset() {
         this.clans = [];
         this.clanHistory = [];
+    }
+
+    /**
+     * Расчет эффективности клана
+     */
+    _calculateClanEfficiency(clan) {
+        if (!clan.members || clan.members.length === 0) return 0;
+        
+        const aliveMembers = clan.members.filter(m => m.economics && m.economics.alive);
+        if (aliveMembers.length === 0) return 0;
+        
+        // Эффективность = средняя производительность * плотность связей
+        const avgProductivity = aliveMembers.reduce((sum, m) => {
+            return sum + (m.economics.productivity || 1);
+        }, 0) / aliveMembers.length;
+        
+        return avgProductivity * clan.density;
+    }
+
+    /**
+     * Расчет продуктивности клана
+     */
+    _calculateClanProductivity(clan) {
+        if (!clan.members || clan.members.length === 0) return 0;
+        
+        const aliveMembers = clan.members.filter(m => m.economics && m.economics.alive);
+        if (aliveMembers.length === 0) return 0;
+        
+        // Продуктивность = общие ресурсы / количество живых членов
+        return clan.totalResources / aliveMembers.length;
+    }
+
+    /**
+     * Расчет потребления клана
+     */
+    _calculateClanConsumption(clan) {
+        if (!clan.members || clan.members.length === 0) return 0;
+        
+        const aliveMembers = clan.members.filter(m => m.economics && m.economics.alive);
+        if (aliveMembers.length === 0) return 0;
+        
+        // Потребление = количество живых членов * базовое потребление
+        return aliveMembers.length * 10; // Предполагаем базовое потребление 10 единиц на агента
     }
 }

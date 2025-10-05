@@ -143,8 +143,8 @@ export class EnhancedEconomicEngine extends EconomicEngine {
         // Обновление статистики агента
         agent.economics.productivityHistory.push(totalProduction);
         
-        // Логирование значительных изменений производства
-        if (totalProduction > baseProduction * 1.5) {
+        // Логирование производства для всех агентов (с ограничением для статистики)
+        if (Math.random() < 0.1 || totalProduction > baseProduction * 1.5) { // Логируем 10% случайных + значительные изменения
             this._logEvent(EVENT_TYPES.RESOURCE_PRODUCTION, {
                 agentId: agentIndex,
                 cycle,

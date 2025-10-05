@@ -50,12 +50,12 @@ export function runEnhancedSimulation(params) {
     
     let clanSystem;
     try {
-        // Временно используем только базовую систему кланов
-        clanSystem = new ClanSystem(clanParams);
-        console.log('Using basic ClanSystem');
+        // Используем базовую систему кланов с eventLogger
+        clanSystem = new ClanSystem(clanParams, eventLogger);
+        console.log('Using basic ClanSystem with eventLogger');
     } catch (error) {
         console.error('Failed to initialize clan system:', error);
-        clanSystem = new ClanSystem({});
+        clanSystem = new ClanSystem({}, eventLogger);
     }
     
     const conflictMechanics = new ConflictMechanics(conflictParams);
