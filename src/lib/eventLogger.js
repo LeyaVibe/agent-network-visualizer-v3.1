@@ -114,7 +114,9 @@ export class EventLogger {
                 return `Агент ${data.agentId} умер от ${data.cause || 'неизвестной причины'} (ресурсы: ${safeFixed(data.resources)})`;
             
             case EVENT_TYPES.RESOURCE_PRODUCTION:
-                return `Агент ${data.agentId || 'N/A'} произвел ${safeFixed(data.amount)} ресурсов (множитель: ${safeFixed(data.multiplier, 2) || 1})`;
+                const agentId = data.agentId !== undefined && data.agentId !== null ? data.agentId : 'Неизвестный';
+                const multiplier = data.multiplier !== undefined && data.multiplier !== null ? safeFixed(data.multiplier, 2) : '1.00';
+                return `Агент ${agentId} произвел ${safeFixed(data.amount)} ресурсов (множитель: ${multiplier})`;
             
             case EVENT_TYPES.STARVATION_WARNING:
                 return `Агент ${data.agentId} голодает ${data.starvationDays || 0} дней (ресурсы: ${safeFixed(data.resources)})`;
