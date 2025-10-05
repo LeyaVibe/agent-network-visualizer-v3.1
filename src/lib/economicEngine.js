@@ -6,7 +6,8 @@
 export class EconomicEngine {
     constructor(params = {}) {
         // Базовые параметры производства
-        this.baseProductivity = params.baseProductivity || 10;
+        // Уменьшаем базовую производительность для создания дефицита
+        this.baseProductivity = params.baseProductivity || 7;
         this.minSurvival = params.minSurvival || 10;
         this.maxMultiplier = params.maxMultiplier || 2.5;
         this.strongConnectionThreshold = params.strongConnectionThreshold || 0.3;
@@ -19,8 +20,8 @@ export class EconomicEngine {
         this.interClanDistribution = params.interClanDistribution !== false;
         
         // Начальные ресурсы (зависят от сложности)
-        // Рассчитываем на основе минимальной эффективности
-        const survivalCycles = this.minEfficiency < 0.4 ? 1.5 : (this.minEfficiency < 0.6 ? 3 : 5);
+        // Уменьшаем начальные ресурсы для создания большей конкуренции
+        const survivalCycles = this.minEfficiency < 0.4 ? 1.0 : (this.minEfficiency < 0.6 ? 2 : 3);
         this.initialResources = params.initialResources || Math.round(this.minSurvival * survivalCycles);
     }
 
@@ -169,7 +170,8 @@ export class EconomicEngine {
                     agent.economics.accumulatedResources = 0;
                     
                     // Вероятность смерти увеличивается с каждым циклом голодания
-                    const deathProbability = Math.min(0.9, agent.economics.starvationCounter / this.starvationThreshold * 0.3);
+                    // Увеличиваем вероятность смерти для создания реальной угрозы
+                    const deathProbability = Math.min(0.9, agent.economics.starvationCounter / this.starvationThreshold * 0.5);
                     
                     // Агент может умереть с определенной вероятностью или после достижения порога
                     if (agent.economics.starvationCounter >= this.starvationThreshold || Math.random() < deathProbability) {

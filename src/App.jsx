@@ -81,7 +81,7 @@ function App() {
   // Экономические параметры
   const [economicParams, setEconomicParams] = useState({
     enabled: true, // Изменено: экономическая модель включена по умолчанию
-    baseProductivity: 10,
+    baseProductivity: 7,
     minSurvival: 10,
     maxMultiplier: 2.5,
     strongConnectionThreshold: 0.3,
